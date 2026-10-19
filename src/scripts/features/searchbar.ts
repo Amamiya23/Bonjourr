@@ -19,7 +19,6 @@ import { onSettingsLoad } from '../utils/onsettingsload.ts'
 type SearchbarUpdate = {
     removeEngine?: string
     engine?: string
-    newtab?: boolean
     width?: string
     suggestions?: boolean
     placeholder?: string
@@ -149,7 +148,6 @@ export function searchbar(init?: Searchbar, update?: SearchbarUpdate): void {
 async function updateSearchbar({
     removeEngine,
     engine,
-    newtab,
     background,
     placeholder,
     request,
@@ -170,11 +168,6 @@ async function updateSearchbar({
     if (suggestions !== undefined) {
         searchbar.suggestions = suggestions
         setSuggestions(suggestions)
-    }
-
-    if (newtab !== undefined) {
-        searchbar.newtab = newtab
-        setNewtab(newtab)
     }
 
     if (width !== undefined) {

@@ -316,9 +316,140 @@ body.potato #app-page-form {
     max-width: 100%;
 }
 
+/* Home-screen icons keep the same columns even when the last row is incomplete. */
+#linkblocks:is(.large, .medium, .small) {
+    --column-gap: clamp(0.5em, 2vw, 1.5em);
+    --row-gap: 1.75em;
+    width: min(100%, calc(var(--links-columns, 6) * (var(--block-size) + var(--column-gap)) - var(--column-gap) + 2px));
+}
+
+#linkblocks.large {
+    --block-size: 7em;
+    --icon-size: 4.8em;
+}
+
+#linkblocks.medium {
+    --block-size: 6em;
+    --icon-size: 4em;
+}
+
+#linkblocks.small {
+    --block-size: 5em;
+    --icon-size: 3em;
+}
+
+#linkblocks:is(.large, .medium, .small) .link-group {
+    width: 100%;
+    min-width: 0;
+}
+
+#linkblocks:is(.large, .medium, .small) .link-group:not(.in-drag) .link-list {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+#linkblocks:is(.large, .medium, .small) .link-group:not(.in-folder):not(.in-drag) .link-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--block-size)), 1fr));
+    justify-items: center;
+    align-items: start;
+}
+
+#linkblocks:is(.large, .medium, .small) .link {
+    width: var(--block-size);
+    max-width: 100%;
+    min-width: 0;
+}
+
+#linkblocks:is(.large, .medium, .small) .link a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-radius: 0.75em;
+}
+
+#linkblocks:is(.large, .medium, .small) .link .link-icon {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    border-radius: var(--link-outer-radius);
+    padding: var(--link-padding);
+}
+
+#linkblocks:is(.large, .medium, .small) .link img {
+    display: block;
+    object-fit: contain;
+    border-radius: max(0px, calc(var(--link-outer-radius) - var(--link-padding)));
+}
+
+#linkblocks:is(.large, .medium, .small) .link .link-elem-title {
+    position: static;
+    width: 100%;
+    min-height: 2.6em;
+    max-height: 2.6em;
+    padding: 0;
+    margin-top: 0.65em;
+    font-size: 0.85em;
+    line-height: 1.3;
+    letter-spacing: normal;
+    overflow-wrap: anywhere;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    text-shadow: inherit;
+    color: inherit;
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+}
+
+#linkblocks.titles:is(.large, .medium, .small) .link .link-elem-title:not(:empty) {
+    display: -webkit-box;
+}
+
+#linkblocks:is(.large, .medium, .small) .link-folder .link-icon {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 4px;
+    padding: 8px;
+}
+
+#linkblocks:is(.large, .medium, .small) .link-folder img {
+    position: static;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 2px;
+    border-radius: 4px;
+}
+
+#linkblocks:is(.large, .medium, .small) .link-folder img:not([src]) {
+    display: none;
+}
+
+#linkblocks .link a:focus-visible,
+#linkblocks .link-folder:focus-visible,
+#link-mini .link-title:focus-visible {
+    outline: 2px solid rgb(var(--accent-color));
+    outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #linkblocks .link,
+    #linkblocks .link .link-icon,
+    #linkblocks .link img {
+        transition: none;
+    }
+}
+
 #linkblocks #link-mini {
-    order: -3;
-    padding: 0 0 1.5em;
+    order: 1;
+    padding: 1.5em 0 0;
 }
 
 #link-mini > div {

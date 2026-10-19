@@ -71,7 +71,6 @@ type SubmitFolder = {
 type LinksUpdate = {
     iconradius?: string
     row?: string
-    newtab?: boolean
     groups?: boolean
     addLinks?: AddLinks
     addGroups?: AddGroups
@@ -365,6 +364,8 @@ function createIcons(local: Local): void {
 }
 
 function initRows(row: number, style: string): void {
+    domlinkblocks.style.setProperty('--links-columns', String(row))
+
     const sizes = {
         large: { width: 4.8, gap: 2.3 },
         medium: { width: 3.5, gap: 2 },
@@ -470,9 +471,6 @@ export async function linksUpdate(update: LinksUpdate): Promise<void> {
     }
     if (update.groups !== undefined) {
         data = toggleGroups(update.groups, data)
-    }
-    if (update.newtab !== undefined) {
-        data = setOpenInNewTab(update.newtab, data)
     }
     if (update.refreshIcons) {
         data = refreshIcons(update.refreshIcons, data)
@@ -779,22 +777,6 @@ function refreshIcons(ids: string[], data: Sync): Sync {
     }
 
     initblocks(data)
-
-    return data
-}
-
-function setOpenInNewTab(newtab: boolean, data: Sync): Sync {
-    const anchors = document.querySelectorAll<HTMLAnchorElement>('.link a')
-
-    for (const anchor of anchors) {
-        if (newtab) {
-            anchor.setAttribute('target', '_blank')
-        } else {
-            anchor.removeAttribute('target')
-        }
-    }
-
-    data.linknewtab = newtab
 
     return data
 }

@@ -10,6 +10,7 @@ import { moveElements } from './features/move/index.ts'
 import { hideElements } from './features/hide.ts'
 import { linksImport } from './features/links/bookmarks.ts'
 import { quickLinks } from './features/links/index.ts'
+import { setOpenInNewTab } from './features/link-navigation.ts'
 import { searchbar } from './features/searchbar.ts'
 import { weather } from './features/weather/index.ts'
 import { quotes } from './features/quotes.ts'
@@ -249,7 +250,7 @@ function initOptionsValues(data: Sync, local: Local): void {
     setCheckbox('i_background-mute-videos', data.backgrounds.mute ?? true)
     setCheckbox('i_quicklinks', data.quicklinks)
     setCheckbox('i_linkgroups', data?.linkgroups?.on)
-    setCheckbox('i_linknewtab', data.linknewtab)
+    setCheckbox('i_opennewtab', Boolean(data.linknewtab || data.searchbar?.newtab))
     setCheckbox('i_time', data.time)
     setCheckbox('i_analog', data.clock?.analog ?? false)
     setCheckbox('i_seconds', data.clock?.seconds ?? false)
@@ -265,7 +266,6 @@ function initOptionsValues(data: Sync, local: Local): void {
     setCheckbox('i_ampm', data.clock?.ampm ?? false)
     setCheckbox('i_ampm-label', data.clock?.ampmlabel ?? false)
     setCheckbox('i_sbsuggestions', data.searchbar?.suggestions ?? true)
-    setCheckbox('i_sbnewtab', data.searchbar?.newtab ?? false)
     setCheckbox('i_qtauthor', data.quotes?.author ?? false)
 
     // this one's weird because it was a select made into a checkbox
@@ -488,8 +488,8 @@ function initOptionsEvents(): void {
         quickLinks(undefined, { groups: target.checked })
     })
 
-    onclickdown(paramId('i_linknewtab'), (_, target) => {
-        quickLinks(undefined, { newtab: target.checked })
+    onclickdown(paramId('i_opennewtab'), (_, target) => {
+        void setOpenInNewTab(target.checked)
     })
 
     paramId('i_linkstyle').addEventListener('change', function (this): void {
@@ -840,10 +840,6 @@ function initOptionsEvents(): void {
     paramId('f_sbrequest').addEventListener('submit', function (this, event: SubmitEvent): void {
         searchbar(undefined, { request: true })
         event.preventDefault()
-    })
-
-    onclickdown(paramId('i_sbnewtab'), (_, target) => {
-        searchbar(undefined, { newtab: target.checked })
     })
 
     onclickdown(paramId('i_sbsuggestions'), (_, target) => {

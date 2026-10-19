@@ -466,11 +466,13 @@ export function isStorageDefault(data: Sync): boolean {
 }
 
 function verifyDataAsSync(data: Partial<Sync> = {}): Sync {
-    const searchbar = { ...SYNC_DEFAULT.searchbar, ...data.searchbar }
+    const openInNewTab = Boolean(data.linknewtab || data.searchbar?.newtab)
+    const searchbar = { ...SYNC_DEFAULT.searchbar, ...data.searchbar, newtab: openInNewTab }
     if (!configuredEngines(searchbar).some((engine) => engine.id === searchbar.engine)) searchbar.engine = 'google'
     return {
         ...SYNC_DEFAULT,
         ...data,
+        linknewtab: openInNewTab,
         lang: data.languageMode === 'manual' ? data.lang ?? SYNC_DEFAULT.lang : systemLanguage(),
         searchbar,
     }

@@ -244,3 +244,88 @@ Deno.test({
         assertEquals((await storage.sync.get()).compactLayout, false)
     },
 })
+
+Deno.test({
+    name: 'General new-tab setting controls search and existing, added and recreated quick links',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const { setOpenInNewTab } = await import('../../src/scripts/features/link-navigation.ts')
+        const { initblocks, linksUpdate } = await import('../../src/scripts/features/links/index.ts')
+        const previous = await storage.sync.get()
+        const originalOpen = globalThis.open
+        const opened: unknown[][] = []
+        globalThis.open = ((...args: unknown[]) => {
+            opened.push(args)
+            return null
+        }) as typeof globalThis.open
+        try {
+            assertEquals(document.querySelectorAll('#i_opennewtab').length, 1)
+            assertEquals(
+                document.querySelector('#i_opennewtab')?.closest('.param')?.previousElementSibling?.id,
+                'general_title',
+            )
+            assertEquals(document.querySelector('#i_sbnewtab, #i_linknewtab'), null)
+            await linksUpdate({ addLinks: [{ title: 'Example', url: 'https://example.org' }] })
+            await setOpenInNewTab(true)
+            assertEquals(document.querySelector<HTMLAnchorElement>('#linkblocks .link a')?.target, '_blank')
+            document.querySelector<HTMLInputElement>('#searchbar')!.value = 'https://example.org'
+            document.querySelector<HTMLFormElement>('#sb_container')!.dispatchEvent(
+                new Event('submit', { cancelable: true }),
+            )
+            assertEquals(opened.at(-1)?.[1], '_blank')
+            await linksUpdate({ addLinks: [{ title: 'Second', url: 'https://example.net' }] })
+            assertEquals(
+                Array.from(document.querySelectorAll<HTMLAnchorElement>('#linkblocks .link a')).every((a) =>
+                    a.target === '_blank'
+                ),
+                true,
+            )
+            const reloaded = await storage.init()
+            assertEquals(reloaded.sync?.linknewtab, true)
+            assertEquals(reloaded.sync?.searchbar.newtab, true)
+            initblocks(reloaded.sync!)
+            assertEquals(document.querySelector<HTMLAnchorElement>('#linkblocks .link a')?.target, '_blank')
+            await setOpenInNewTab(false)
+            assertEquals(
+                document.querySelector<HTMLAnchorElement>('#linkblocks .link a')?.hasAttribute('target'),
+                false,
+            )
+            document.querySelector<HTMLFormElement>('#sb_container')!.dispatchEvent(
+                new Event('submit', { cancelable: true }),
+            )
+            assertEquals(opened.at(-1)?.[1], '_self')
+            const disabled = await storage.sync.get()
+            assertEquals(disabled.linknewtab, false)
+            assertEquals(disabled.searchbar.newtab, false)
+        } finally {
+            globalThis.open = originalOpen
+            localStorage.bonjourr = JSON.stringify(previous)
+            initblocks(previous)
+            document.getElementById('sb_container')?.setAttribute('data-newtab', String(previous.searchbar.newtab))
+        }
+    },
+})
+
+Deno.test({
+    name: 'Existing search-only or quick-link-only new-tab preferences migrate to the shared setting',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const previous = localStorage.bonjourr
+        try {
+            for (const [links, search] of [[false, true], [true, false], [false, false]]) {
+                localStorage.bonjourr = JSON.stringify({
+                    ...SYNC_DEFAULT,
+                    linknewtab: links,
+                    searchbar: { ...SYNC_DEFAULT.searchbar, newtab: search },
+                })
+                const loaded = await storage.sync.get()
+                assertEquals(loaded.linknewtab, links || search)
+                assertEquals(loaded.searchbar.newtab, links || search)
+            }
+        } finally {
+            localStorage.bonjourr = previous
+        }
+    },
+})
