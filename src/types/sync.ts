@@ -12,6 +12,7 @@ export interface Sync {
     linksrow: number
     linkiconradius: number
     linkstyle: 'large' | 'medium' | 'small' | 'inline' | 'text'
+    design: 'classic' | 'liquid-glass'
     linknewtab: boolean
     linktitles: boolean
     linkbackgrounds: boolean

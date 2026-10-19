@@ -70,6 +70,16 @@ export function pageControl(val: { width?: number; gap?: number }, isEvent?: tru
     }
 }
 
+export function design(value?: 'classic' | 'liquid-glass', isEvent?: boolean): void {
+    const nextDesign = value === 'liquid-glass' ? 'liquid-glass' : 'classic'
+
+    document.documentElement.dataset.design = nextDesign
+
+    if (isEvent) {
+        storage.sync.set({ design: nextDesign })
+    }
+}
+
 let currentThemeMode: string
 export function darkmode(value: 'auto' | 'system' | 'enable' | 'disable', isEvent?: boolean): void {
     const mediaQuery = globalThis.matchMedia('(prefers-color-scheme: dark)')

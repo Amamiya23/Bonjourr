@@ -36,14 +36,14 @@ export function weatherApiSettings(sync: Sync, local: Local): void {
             event.preventDefault()
             const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')
             if (button) button.disabled = true
-            status.textContent = '正在保存并测试天气连接…'
+            status.textContent = '正在连接…'
             try {
                 const endpoint = source.value === 'custom' ? httpUrl(url.value.trim()).href : UAPI_WEATHER_URL
                 if (adcode.value.trim() && !/^\d{6}$/.test(adcode.value.trim())) {
-                    throw new Error('行政区编码必须是 6 位数字。')
+                    throw new Error('行政区编码格式不正确。')
                 }
                 if (source.value === 'uapi' && key.value.trim() && !/^uapi-\S+$/.test(key.value.trim())) {
-                    throw new Error('UAPI 密钥应以 uapi- 开头。')
+                    throw new Error('密钥格式不正确。')
                 }
                 // Request permission while still inside the user's submit gesture.
                 if (source.value !== 'bonjourr') await requestOrigin(endpoint)
@@ -59,7 +59,7 @@ export function weatherApiSettings(sync: Sync, local: Local): void {
                 await storage.local.set({ weatherApiKey: key.value.trim(), weatherApiOrigin: new URL(endpoint).origin })
                 await storage.sync.set({ weather: data.weather })
                 const result = await requestNewWeather(data.weather)
-                if (!result) throw new Error('天气未返回数据，请检查网络。')
+                if (!result) throw new Error('无法获取天气。')
                 await storage.local.set({ lastWeather: result })
                 displayWeather(data.weather, result)
                 document.getElementById('weather-status')?.replaceChildren()
@@ -67,7 +67,7 @@ export function weatherApiSettings(sync: Sync, local: Local): void {
                     Math.round(result.temp)
                 }°`
             } catch (error) {
-                status.textContent = error instanceof Error ? error.message : '天气连接失败。'
+                status.textContent = error instanceof Error ? error.message : '连接失败。'
             } finally {
                 if (button) button.disabled = false
             }

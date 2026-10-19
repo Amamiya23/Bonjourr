@@ -1,6 +1,17 @@
 import { fetchWithTimeout, httpUrl } from '../../shared/network.ts'
-import { MAX_BACKUP_BYTES, parseBackup } from './backup.ts'
-import type { Backup } from './backup.ts'
+import { getCache } from '../../shared/cache.ts'
+import {
+    backgroundCacheUrl,
+    backupAssetName,
+    backupIconName,
+    MAX_LEGACY_BYTES,
+    MAX_MANIFEST_BYTES,
+    parseBackup,
+    readBackupAsset,
+    readBackupIcon,
+    restoreBackup,
+} from './backup.ts'
+import type { Backup, BackupPayload } from './backup.ts'
 import type { WebdavConfig } from '../../../types/local.ts'
 
 function directoryParts(config: WebdavConfig): string[] {
@@ -52,7 +63,7 @@ function failure(response: Response): Error {
         404: 'WebDAV 目录或备份文件不存在，请检查服务地址，或先上传一份备份。',
         405: '服务器不支持此 WebDAV 操作，请检查服务地址。',
         409: 'WebDAV 父目录不存在，请检查服务地址。',
-        412: '远程备份已被其他设备修改，请先下载或另存快照。',
+        412: '远程备份已被其他设备修改，请先恢复或更换备份目录。',
         423: 'WebDAV 文件被锁定，请稍后重试。',
         429: 'WebDAV 请求过于频繁，请稍后重试。',
         507: 'WebDAV 存储空间不足。',
@@ -108,46 +119,152 @@ export async function testWebdav(config: WebdavConfig): Promise<void> {
     await verifyDirectory(await inspectDirectory(config, directory))
 }
 
-export async function downloadWebdav(config: WebdavConfig): Promise<{ backup: Backup; etag?: string }> {
+export async function downloadWebdav(
+    config: WebdavConfig,
+): Promise<{ backup: BackupPayload; etag?: string }> {
     const response = await fetchWithTimeout(
         webdavFile(config),
         { headers: headers(config), cache: 'no-store' },
-        MAX_BACKUP_BYTES,
+        MAX_LEGACY_BYTES,
         60000,
     )
     if (!response.ok) throw failure(response)
-    if (Number(response.headers.get('Content-Length')) > MAX_BACKUP_BYTES) throw new Error('远程备份超过 50 MB。')
     return { backup: parseBackup(await response.text()), etag: response.headers.get('ETag') ?? undefined }
+}
+
+export async function restoreWebdav(config: WebdavConfig, backup: BackupPayload): Promise<void> {
+    if (backup.version === 1) {
+        await restoreBackup(backup)
+        return
+    }
+
+    const cache = await getCache('local-files')
+
+    for (const asset of backup.assets) {
+        const filename = backupAssetName(asset)
+        const response = await fetchWebdavFile(config, filename, asset.bytes + 1024 * 1024, 600000)
+
+        const body = response.body
+        if (!body) throw new Error(`无法读取备份文件 ${filename}。`)
+
+        await cache.put(
+            new Request(backgroundCacheUrl(asset)),
+            new Response(body, { headers: { 'Content-Type': asset.type } }),
+        )
+    }
+
+    const icons: Record<string, string> = {}
+    for (const icon of backup.icons) {
+        const filename = backupIconName(icon)
+        const response = await fetchWebdavFile(config, filename, icon.bytes + 1024 * 1024, 120000)
+        icons[icon.key] = await blobToDataUrl(await response.blob(), icon.type)
+    }
+
+    await restoreBackup(backup, icons)
 }
 
 export async function uploadWebdav(
     config: WebdavConfig,
     backup: Backup,
-    snapshot = false,
 ): Promise<string | undefined> {
     await testWebdav(config)
+
+    for (const asset of backup.assets) {
+        const blob = await readBackupAsset(asset)
+        await putWebdavFile(config, backupAssetName(asset), blob, asset.type, 600000)
+    }
+
+    for (const icon of backup.icons) {
+        const blob = await readBackupIcon(icon)
+        await putWebdavFile(config, backupIconName(icon), blob, icon.type, 120000)
+    }
+
+    const payload = JSON.stringify(backup)
+    if (new Blob([payload]).size > MAX_MANIFEST_BYTES) {
+        throw new Error('备份配置超过 10 MB。')
+    }
+
     const requestHeaders = headers(config)
     requestHeaders.set('Content-Type', 'application/json; charset=utf-8')
-    const filename = snapshot
-        ? `bonjourr-${backup.createdAt.replace(/[:.]/g, '-')}-${crypto.randomUUID().slice(0, 8)}.json`
-        : undefined
-    if (!snapshot && config.etag?.startsWith('W/')) {
-        throw new Error('服务器仅提供弱 ETag，无法安全覆盖；请使用“另存快照”。')
+    if (config.etag?.startsWith('W/')) {
+        throw new Error('服务器仅提供弱 ETag，无法安全覆盖。')
     }
-    requestHeaders.set(
-        !snapshot && config.etag ? 'If-Match' : 'If-None-Match',
-        !snapshot && config.etag ? config.etag : '*',
-    )
+    requestHeaders.set(config.etag ? 'If-Match' : 'If-None-Match', config.etag ?? '*')
+
     const response = await fetchWithTimeout(
-        webdavFile(config, filename),
+        webdavFile(config),
         {
             method: 'PUT',
             headers: requestHeaders,
-            body: JSON.stringify(backup),
+            body: payload,
         },
-        MAX_BACKUP_BYTES,
+        MAX_MANIFEST_BYTES,
         60000,
     )
     if (!response.ok) throw failure(response)
     return response.headers.get('ETag') ?? undefined
+}
+
+async function fetchWebdavFile(
+    config: WebdavConfig,
+    filename: string,
+    maxBytes: number,
+    timeoutMs: number,
+): Promise<Response> {
+    let response: Response
+
+    try {
+        response = await fetch(webdavFile(config, filename), {
+            headers: headers(config),
+            cache: 'no-store',
+            credentials: 'omit',
+            redirect: 'error',
+            signal: AbortSignal.timeout(timeoutMs),
+        })
+    } catch (error) {
+        if (error instanceof DOMException && error.name === 'TimeoutError') {
+            throw new Error('请求超时，请稍后重试。')
+        }
+        throw new Error('无法连接服务器，请检查地址、网络或访问权限。')
+    }
+
+    if (!response.ok) {
+        await response.body?.cancel()
+        throw failure(response)
+    }
+
+    if (Number(response.headers.get('Content-Length')) > maxBytes) {
+        await response.body?.cancel()
+        throw new Error('备份文件超过预期大小。')
+    }
+
+    return response
+}
+
+async function putWebdavFile(
+    config: WebdavConfig,
+    filename: string,
+    body: Blob | string,
+    contentType: string,
+    timeoutMs: number,
+): Promise<void> {
+    const requestHeaders = headers(config)
+    requestHeaders.set('Content-Type', contentType)
+    const response = await fetchWithTimeout(
+        webdavFile(config, filename),
+        { method: 'PUT', headers: requestHeaders, body },
+        MAX_MANIFEST_BYTES,
+        timeoutMs,
+    )
+    if (!response.ok) throw failure(response)
+    await response.body?.cancel()
+}
+
+async function blobToDataUrl(blob: Blob, type: string): Promise<string> {
+    const array = new Uint8Array(await blob.arrayBuffer())
+    let binary = ''
+    for (let i = 0; i < array.length; i += 8192) {
+        binary += String.fromCharCode(...array.subarray(i, i + 8192))
+    }
+    return `data:${type};base64,${btoa(binary)}`
 }

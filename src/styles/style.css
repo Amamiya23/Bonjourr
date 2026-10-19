@@ -51,5 +51,8 @@
 @import './features/supporters.css';
 @import './features/personal.css';
 
+/* Optional design themes */
+@import './liquidglass.css';
+
 /* <!> Responsive must be imported last */
 @import './_responsive.css';

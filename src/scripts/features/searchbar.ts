@@ -134,10 +134,10 @@ export function searchbar(init?: Searchbar, update?: SearchbarUpdate): void {
             const status = document.getElementById('search-bookmarks-status')
             try {
                 const allowed = await getPermissions('bookmarks')
-                if (status) status.textContent = allowed ? '已启用书签搜索。' : '未获得书签权限。'
+                if (status) status.textContent = allowed ? '已启用' : '未授权'
                 if (allowed) await loadBookmarkIndex()
             } catch (_) {
-                if (status) status.textContent = '网页版无法访问浏览器书签，应用搜索仍可使用。'
+                if (status) status.textContent = '当前环境不可用'
             }
         })
     } catch (_) {

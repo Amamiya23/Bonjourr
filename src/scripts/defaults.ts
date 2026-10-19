@@ -105,6 +105,7 @@ export const SYNC_DEFAULT: Sync = {
     css: '',
     hide: {},
     linkstyle: 'medium',
+    design: 'classic',
     linktitles: true,
     linkbackgrounds: true,
     linknewtab: false,

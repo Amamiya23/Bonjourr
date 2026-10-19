@@ -1,4 +1,4 @@
-import { altMode, darkmode, favicon, pageControl, tabTitle, textShadow } from './features/others.ts'
+import { altMode, darkmode, design, favicon, pageControl, tabTitle, textShadow } from './features/others.ts'
 import { supportersNotifications } from './features/supporters.ts'
 import { synchronization } from './features/synchronization/index.ts'
 import { backgroundsInit } from './features/backgrounds/index.ts'
@@ -82,6 +82,7 @@ async function startup(): Promise<void> {
     tabTitle(sync.tabtitle)
     clock(sync)
     darkmode(sync.dark)
+    design(sync.design)
     searchbar(sync.searchbar)
     quotes({ sync, local })
     pomodoro(sync.pomodoro)

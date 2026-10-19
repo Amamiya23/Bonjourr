@@ -17,11 +17,12 @@ const collectionXml =
 const collectionResponse = () => new Response(collectionXml, { status: 207 })
 const backup: Backup = {
     format: 'bonjourr-webdav',
-    version: 1,
+    version: 2,
     createdAt: '2026-10-19T00:00:00.000Z',
     settings: structuredClone(SYNC_DEFAULT),
-    local: { backgroundFiles: {}, backgroundUrls: {}, icons: {} },
+    local: { backgroundFiles: {}, backgroundUrls: {} },
     assets: [],
+    icons: [],
 }
 
 Deno.test('WebDAV directory paths retain their final folder', () => {
@@ -137,25 +138,6 @@ Deno.test('WebDAV sync uses the last observed ETag and surfaces conflicts', asyn
     }) as typeof fetch
     try {
         assertEquals(await uploadWebdav({ ...config, etag: '"revision-1"' }, backup), '"revision-2"')
-    } finally {
-        globalThis.fetch = original
-    }
-})
-
-Deno.test('WebDAV snapshots write distinct files without changing the sync baseline', async () => {
-    const original = globalThis.fetch
-    const paths: string[] = []
-    globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
-        if (init?.method === 'PROPFIND') return Promise.resolve(collectionResponse())
-        paths.push(String(url))
-        assertEquals(new Headers(init?.headers).get('If-None-Match'), '*')
-        return Promise.resolve(new Response('', { status: 201 }))
-    }) as typeof fetch
-    try {
-        await uploadWebdav(config, backup, true)
-        await uploadWebdav(config, backup, true)
-        assertEquals(paths[0] === paths[1], false)
-        assertEquals(paths.every((path) => !path.endsWith('/bonjourr-latest.json')), true)
     } finally {
         globalThis.fetch = original
     }

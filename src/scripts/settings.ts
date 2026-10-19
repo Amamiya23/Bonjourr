@@ -1,8 +1,7 @@
-import { darkmode, favicon, pageControl, tabTitle, textShadow } from './features/others.ts'
+import { darkmode, design, favicon, pageControl, tabTitle, textShadow } from './features/others.ts'
 import { initSupportersSettingsNotif, supportersNotifications } from './features/supporters.ts'
-import { customFont, fontIsAvailableInSubset, systemfont } from './features/fonts.ts'
+import { customFont, systemfont } from './features/fonts.ts'
 import { backgroundUpdate, initBackgroundOptions, toggleMuteStatus } from './features/backgrounds/index.ts'
-import { buildBackgroundUrls, parseUrlList } from './features/backgrounds/urls.ts'
 import { changeGroupTitle, initGroups } from './features/links/groups.ts'
 import { synchronization } from './features/synchronization/index.ts'
 import { interfacePopup } from './features/popup.ts'
@@ -21,7 +20,7 @@ import { togglePomodoroFocus } from './features/pomodoro.ts'
 import { openSettingsButtonEvent } from './features/contextmenu.ts'
 
 import { colorInput, fadeOut, inputThrottle, turnRefreshButton, webkitRangeTrackColor } from './shared/dom.ts'
-import { BROWSER, IS_MOBILE, PLATFORM, SYNC_DEFAULT } from './defaults.ts'
+import { BROWSER, IS_MOBILE, PLATFORM } from './defaults.ts'
 import { toggleTraduction, tradThis, traduction } from './utils/translations.ts'
 import { settingsNotifications } from './utils/notifications.ts'
 import { getPermissions } from './utils/permissions.ts'
@@ -29,15 +28,11 @@ import { opacityFromHex } from './shared/generic.ts'
 import { loadCallbacks } from './utils/onsettingsload.ts'
 import { getLangForSite } from './utils/translations.ts'
 import { onclickdown } from 'clickdown/mod'
-import { filterData } from './compatibility/apply.ts'
-import { stringify } from './utils/stringify.ts'
 import { debounce } from './utils/debounce.ts'
 import { langList } from './langs.ts'
 import { systemLanguage } from './utils/language.ts'
 import { storage } from './storage.ts'
-import { parse } from './utils/parse.ts'
 
-import type { Langs } from '../types/shared.ts'
 import type { Sync } from '../types/sync.ts'
 import type { Local } from '../types/local.ts'
 
@@ -128,8 +123,6 @@ function settingsInitEvent(event: Event): void {
 
     setTimeout(() => {
         initWorldClocksAndTimezone(sync)
-        updateSettingsJson(sync)
-        updateSettingsEvent()
         translateAriaLabels()
         settingsDrawerBar()
         loadCallbacks()
@@ -184,6 +177,7 @@ function initOptionsValues(data: Sync, local: Local): void {
     setInput('i_type', data.backgrounds.type || 'images')
     setInput('i_freq', data.backgrounds?.frequency || 'hour')
     setInput('i_dark', data.dark || 'system')
+    setInput('i_design', data.design === 'liquid-glass' ? 'liquid-glass' : 'classic')
     setInput('i_favicon', data.favicon ?? '')
     setInput('i_tabtitle', data.tabtitle ?? '')
     setInput('i_solid-background', data.backgrounds.color ?? '#185A63')
@@ -455,6 +449,10 @@ function initOptionsEvents(): void {
 
     paramId('i_dark').addEventListener('change', function (): void {
         darkmode(this.value as 'auto' | 'system' | 'enable' | 'disable', true)
+    })
+
+    paramId('i_design').addEventListener('change', function (): void {
+        design(this.value as 'classic' | 'liquid-glass', true)
     })
 
     onclickdown(paramId('i_settingshide'), (_, target) => {
@@ -1033,61 +1031,6 @@ function initOptionsEvents(): void {
         synchronization(undefined, { down: true })
     })
 
-    // Settings management
-
-    paramId('settings-management').addEventListener('dragenter', () => {
-        paramId('settings-management').classList.add('dragging-file')
-    })
-
-    paramId('file-import').addEventListener('dragleave', () => {
-        paramId('settings-management').classList.remove('dragging-file')
-    })
-
-    paramId('b_file-load').addEventListener('click', function (this): void {
-        paramId('file-import')?.click()
-    })
-
-    paramId('b_file-save').addEventListener('click', () => {
-        saveImportFile()
-    })
-
-    paramId('file-import').addEventListener('change', function (this): void {
-        loadImportFile(this)
-    })
-
-    paramId('b_settings-copy').addEventListener('click', () => {
-        copySettings()
-    })
-
-    paramId('settings-data').addEventListener('input', (event) => {
-        toggleSettingsChangesButtons(event.type)
-    })
-
-    paramId('settings-data').addEventListener('focus', (event) => {
-        toggleSettingsChangesButtons(event.type)
-    })
-
-    paramId('settings-data').addEventListener('blur', (event) => {
-        toggleSettingsChangesButtons(event.type)
-    })
-
-    onclickdown(paramId('b_settings-cancel'), () => {
-        toggleSettingsChangesButtons('cancel')
-    })
-
-    onclickdown(paramId('b_settings-apply'), () => {
-        const val = paramId('settings-data').value
-        importSettings(parse<Partial<Sync>>(val) ?? {})
-    })
-
-    // applies settings-data when cmd/ctrl + enter
-    paramId('settings-data').addEventListener('keydown', (event) => {
-        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-            event.preventDefault()
-            paramId('b_settings-apply').click()
-        }
-    })
-
     onclickdown(paramId('b_reset-first'), () => {
         resetSettings('first')
     })
@@ -1400,129 +1343,6 @@ function drawerDragEvents(): void {
     }
 }
 
-//	Settings management
-
-function copySettings(): void {
-    const copybtn = document.querySelector('#b_settings-copy span')
-    const pre = document.getElementById('settings-data')
-
-    try {
-        navigator.clipboard.writeText(pre?.textContent ?? '{}')
-
-        if (copybtn) {
-            copybtn.textContent = tradThis('Copied!')
-            setTimeout(() => {
-                copybtn.textContent = tradThis('Copy')
-            }, 1000)
-        }
-    } catch (_error) {
-        // ...
-    }
-}
-
-async function saveImportFile(): Promise<void> {
-    const a = document.getElementById('file-download')
-
-    if (!a) {
-        return
-    }
-
-    const date = new Date()
-    const data = ((await storage.sync.get()) as Sync) ?? {}
-    const zero = (n: number) => (n.toString().length === 1 ? `0${n}` : n.toString())
-    const yyyymmdd = date.toISOString().slice(0, 10)
-    const hhmmss = `${zero(date.getHours())}_${zero(date.getMinutes())}_${zero(date.getSeconds())}`
-
-    const bytes = new TextEncoder().encode(stringify(data))
-    const blob = new Blob([bytes], { type: 'application/json;charset=utf-8' })
-    const href = URL.createObjectURL(blob)
-
-    a.setAttribute('href', href)
-    a.setAttribute('tabindex', '-1')
-    a.setAttribute('download', `bonjourr-${data?.about?.version} ${yyyymmdd} ${hhmmss}.json`)
-    a.click()
-}
-
-function loadImportFile(target: HTMLInputElement): void {
-    function decodeExportFile(str: string): Partial<Sync> {
-        let result = {}
-
-        try {
-            // Tries to decode base64 from previous versions
-            result = parse<Partial<Sync>>(atob(str)) ?? {}
-        } catch {
-            try {
-                // If base64 failed, parse raw string
-                result = parse<Partial<Sync>>(str) ?? {}
-            } catch (_) {
-                // If all failed, return empty object
-                result = {}
-            }
-        }
-
-        return result
-    }
-
-    if (!target.files || (target.files && target.files.length === 0)) {
-        return
-    }
-
-    const file = target.files[0]
-    const reader = new FileReader()
-
-    reader.onload = () => {
-        if (typeof reader.result !== 'string') {
-            return false
-        }
-
-        const importData = decodeExportFile(reader.result)
-
-        // data has at least one valid key from default sync storage => import
-        if (Object.keys(SYNC_DEFAULT).filter((key) => key in importData).length > 0) {
-            importSettings(importData as Sync)
-        }
-    }
-    reader.readAsText(file)
-}
-
-async function importSettings(imported: Partial<Sync>): Promise<void> {
-    try {
-        let data = await storage.sync.get()
-
-        // #308 - verify font subset before importing
-        if (imported?.font?.system === false) {
-            const family = imported?.font?.family
-            const lang = imported?.lang
-            const correctSubset = await fontIsAvailableInSubset(lang, family)
-
-            if (correctSubset === false) {
-                imported.font.family = ''
-            }
-        }
-
-        if (imported?.searchbar?.on) {
-            getPermissions('search')
-        }
-
-        data = filterData('import', data, imported)
-
-        storage.sync.clear()
-        storage.sync.set(data)
-
-        if (imported?.backgrounds?.type === 'urls') {
-            const urls = parseUrlList(imported.backgrounds.urls ?? '')
-
-            if (urls.length > 0) {
-                storage.local.set({ backgroundUrls: buildBackgroundUrls(urls) })
-            }
-        }
-
-        fadeOut()
-    } catch (_) {
-        // ...
-    }
-}
-
 function resetSettings(action: 'yes' | 'no' | 'first'): void {
     if (action === 'yes') {
         storage.clearall().then(fadeOut)
@@ -1531,78 +1351,6 @@ function resetSettings(action: 'yes' | 'no' | 'first'): void {
 
     document.getElementById('reset-first')?.classList.toggle('shown', action === 'no')
     document.getElementById('reset-conf')?.classList.toggle('shown', action === 'first')
-}
-
-export function updateSettingsJson(data?: Sync): void {
-    try {
-        data ? updateTextArea(data) : storage.sync.get().then(updateTextArea)
-    } catch (err) {
-        console.warn(err)
-    }
-
-    function updateTextArea(data: Sync): void {
-        const pre = document.getElementById('settings-data')
-
-        if (pre && data.about) {
-            const orderedJson = stringify(data)
-            data.about.browser = PLATFORM
-            pre.textContent = orderedJson
-        }
-    }
-}
-
-function updateSettingsEvent(): void {
-    // On settings changes, update export code
-    // beforeunload stuff because of this issue: https://github.com/victrme/Bonjourr/issues/194
-    const storageUpdate = () => updateSettingsJson()
-    const removeListener = () => chrome.storage.onChanged.removeListener(storageUpdate)
-
-    if (PLATFORM === 'online') {
-        globalThis.addEventListener('storage', storageUpdate)
-    } else {
-        chrome.storage.onChanged.addListener(storageUpdate)
-        globalThis.addEventListener('beforeunload', removeListener, { once: true })
-    }
-}
-
-async function toggleSettingsChangesButtons(action: string): Promise<void> {
-    const textarea = paramId('settings-data')
-    const data = await storage.sync.get()
-    let hasChanges = false
-
-    if (action === 'input') {
-        const current = stringify(data)
-        let user = ''
-
-        try {
-            user = stringify(JSON.parse(textarea.value ?? '{}') as Sync)
-        } catch (_) {
-            //
-        }
-
-        hasChanges = user.length > 2 && current !== user
-
-        if (hasChanges) {
-            paramId('b_settings-apply')?.removeAttribute('disabled')
-        } else {
-            paramId('b_settings-apply')?.setAttribute('disabled', '')
-        }
-    }
-
-    if (action === 'cancel') {
-        textarea.value = stringify(data)
-        hasChanges = false
-    }
-
-    if (action === 'focus') {
-        paramId('settings-files-options')?.classList.add('hidden')
-        paramId('settings-changes-options')?.classList.remove('hidden')
-    }
-
-    if (action === 'blur') {
-        paramId('settings-changes-options')?.classList.add('hidden')
-        paramId('settings-files-options')?.classList.remove('hidden')
-    }
 }
 
 // this needs to be implemented little by little to replace the billion "paramId('smth')?.classList.toggle('shown', true)" stuff

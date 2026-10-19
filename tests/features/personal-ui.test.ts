@@ -198,7 +198,7 @@ Deno.test({
         try {
             form.dispatchEvent(new Event('submit', { cancelable: true }))
             await flush()
-            assertEquals(button.textContent, '正在测试…')
+            assertEquals(button.textContent, '正在连接…')
             assertEquals(button.disabled, true)
             assertEquals(status.dataset.state, 'pending')
             finish(
@@ -209,7 +209,7 @@ Deno.test({
             )
             await flush()
             assertEquals(status.dataset.state, 'success')
-            assertEquals(status.textContent?.includes('/dav/Bonjourr/'), true)
+            assertEquals(status.textContent, '已连接')
             assertEquals((await storage.local.get('webdav')).webdav?.directory, 'Bonjourr')
             assertEquals(button.disabled, false)
             directory.value = 'My Page'
@@ -218,7 +218,7 @@ Deno.test({
             await flush()
             assertEquals(status.dataset.state, 'error')
             assertEquals(status.textContent?.includes('用户名或密码错误'), true)
-            assertEquals(button.textContent, '保存并测试连接')
+            assertEquals(button.textContent, '保存')
             assertEquals(button.disabled, false)
         } finally {
             globalThis.fetch = original

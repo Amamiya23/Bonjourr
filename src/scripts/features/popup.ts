@@ -1,5 +1,4 @@
 import { getLang, tradThis } from '../utils/translations.ts'
-import { BROWSER } from '../defaults.ts'
 import { storage } from '../storage.ts'
 
 type PopupInit = {
@@ -193,22 +192,9 @@ const ANNOUNCEMENT_TRNS = {
     },
 }
 
-const REVIEW_TEXT = 'Love using Bonjourr? Consider giving us a review or donating, that would help a lot! 😇'
-const REVIEW_URLS = {
-    chrome:
-        'https://chrome.google.com/webstore/detail/bonjourr-%C2%B7-minimalist-lig/dlnejlppicbjfcfcedcflplfjajinajd/reviews',
-    opera:
-        'https://chrome.google.com/webstore/detail/bonjourr-%C2%B7-minimalist-lig/dlnejlppicbjfcfcedcflplfjajinajd/reviews',
-    firefox: 'https://addons.mozilla.org/en-US/firefox/addon/bonjourr-startpage/',
-    safari: 'https://apps.apple.com/fr/app/bonjourr-startpage/id1615431236',
-    edge: 'https://microsoftedge.microsoft.com/addons/detail/bonjourr/dehmmlejmefjphdeoagelkpaoolicmid',
-    other: 'https://bonjourr.fr/help#%EF%B8%8F-reviews',
-}
-
 export function interfacePopup(init?: PopupInit, event?: PopupUpdate): void {
     // // force popup for debugging
     // displayPopup('announce', true)
-    // displayPopup('review', true)
 
     if (event?.announcements !== undefined) {
         storage.sync.set({ announcements: event.announcements ? 'major' : 'off' })
@@ -235,28 +221,15 @@ export function interfacePopup(init?: PopupInit, event?: PopupUpdate): void {
         }
     }
 
-    // Reviews
-
+    // The counter is still used to decide when to show supporters notifications.
     if (init.review === -1) {
         return
     }
 
-    // careful: reviewCounter and init.review are not the same
-    const reviewCounter = getReviewCounter()
-
-    if (reviewCounter > 30) {
-        displayPopup('review')
-    }
-
-    // removes the review popup automatically after 200 tabs
-    if (reviewCounter > 200) {
-        closePopup()
-    }
-
-    localStorage.reviewCounter = reviewCounter + 1
+    localStorage.reviewCounter = getReviewCounter() + 1
 }
 
-function displayPopup(type: 'review' | 'announce', showIcon = false): void {
+function displayPopup(type: 'announce', showIcon = false): void {
     const template = document.getElementById('popup-template') as HTMLTemplateElement
     const doc = document.importNode(template.content, true)
     const popup = doc.getElementById('popup')
@@ -266,12 +239,6 @@ function displayPopup(type: 'review' | 'announce', showIcon = false): void {
 
     if (!popup) {
         return
-    }
-
-    if (type === 'review') {
-        desc.textContent = tradThis(REVIEW_TEXT)
-        buttons.appendChild(createPopupButton(REVIEW_URLS[BROWSER], tradThis('Review')))
-        buttons.appendChild(createPopupButton('https://ko-fi.com/bonjourr', tradThis('Donate')))
     }
 
     if (type === 'announce') {

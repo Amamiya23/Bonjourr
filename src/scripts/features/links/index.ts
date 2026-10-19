@@ -148,8 +148,16 @@ export function initblocks(sync: Sync, local?: Local): true {
     for (const group of [...pinned, selected]) {
         const div = document.querySelector<HTMLDivElement>(`.link-group[data-group="${CSS.escape(group)}"]`)
         const folder = div?.dataset.folder
+        const folderExists = folder ? (sync[folder] as LinkFolder)?.folder === true : false
+
+        if (folder && folderExists === false && div) {
+            div.dataset.folder = ''
+            div.classList.remove('in-folder', 'hiding')
+        }
+
+        const activeFolder = folder && folderExists ? folder : undefined
         const lis: HTMLLIElement[] = []
-        const links = folder ? getLinksInFolder(sync, folder) : getLinksInGroup(sync, group)
+        const links = activeFolder ? getLinksInFolder(sync, activeFolder) : getLinksInGroup(sync, group)
 
         activeGroups.push({
             lis,
@@ -652,6 +660,53 @@ function updateLink({ id, title, icon, url, file }: UpdateLink, data: Sync): Syn
     return data
 }
 
+function getParentFolderIds(ids: string[], data: Sync): string[] {
+    const folders = new Set<string>()
+
+    for (const id of ids) {
+        const parent = (data[id] as Link)?.parent
+
+        if (parent && (data[parent] as LinkFolder)?.folder === true) {
+            folders.add(parent)
+        }
+    }
+
+    return [...folders]
+}
+
+function dissolveSingleLinkFolders(ids: string[], data: Sync, group?: string): boolean {
+    let dissolved = false
+
+    for (const id of ids) {
+        const folder = data[id] as LinkFolder | undefined
+
+        if (folder?.folder !== true) {
+            continue
+        }
+
+        const children = getLinksInFolder(data, id)
+
+        if (children.length > 1) {
+            continue
+        }
+
+        if (children.length === 1) {
+            const child = children[0]
+            const parent = group ?? (typeof folder.parent === 'string' ? folder.parent : '')
+
+            child.parent = parent
+            child.order = folder.order
+            data[child._id] = child
+        }
+
+        delete data[id]
+        setTimeout(() => storage.sync.remove(id))
+        dissolved = true
+    }
+
+    return dissolved
+}
+
 function concatFolders({ target, source }: MoveToFolder, data: Sync): Sync {
     const linktarget = data[target] as Link
     const linksource = data[source] as Link
@@ -697,6 +752,8 @@ function moveToFolder({ target, source }: MoveToFolder, data: Sync): Sync {
 }
 
 function moveOutFolder({ ids, group }: { ids: string[]; group: string }, data: Sync): Sync {
+    const folderIds = getParentFolderIds(ids, data)
+
     // Get the current links in the target group to determine the next order
     const linksInGroup = getLinksInGroup(data, group)
     const maxOrder = linksInGroup.length > 0 ? Math.max(...linksInGroup.map((link) => link.order)) : -1
@@ -707,12 +764,16 @@ function moveOutFolder({ ids, group }: { ids: string[]; group: string }, data: S
         ;(data[id] as Link).order = maxOrder + index + 1
     })
 
+    dissolveSingleLinkFolders(folderIds, data, group)
+
     const correctdata = correctLinksOrder(data)
     initblocks(correctdata)
     return correctdata
 }
 
 function deleteLinks(ids: string[], data: Sync): Sync {
+    const folderIds = getParentFolderIds(ids, data)
+
     for (const id of ids) {
         const link = data[id] as Link
 
@@ -731,9 +792,16 @@ function deleteLinks(ids: string[], data: Sync): Sync {
         delete data[id]
     }
 
+    const dissolved = dissolveSingleLinkFolders(folderIds.filter((id) => data[id] !== undefined), data)
+
     storage.sync.clear()
     const correctdata = correctLinksOrder(data)
     animateLinksRemove(ids)
+
+    if (dissolved) {
+        setTimeout(() => initblocks(correctdata), 600)
+    }
+
     return correctdata
 }
 
@@ -747,10 +815,14 @@ function moveLinks(ids: string[], data: Sync): Sync {
 }
 
 function moveToGroup({ ids, target }: MoveToGroup, data: Sync): Sync {
+    const folderIds = getParentFolderIds(ids, data)
+
     for (const id of ids) {
         ;(data[id] as Link).parent = target
         ;(data[id] as Link).order = Date.now()
     }
+
+    dissolveSingleLinkFolders(folderIds, data)
 
     const correctdata = correctLinksOrder(data)
 
