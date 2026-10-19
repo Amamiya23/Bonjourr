@@ -4,6 +4,7 @@ import { onSettingsLoad } from '../../utils/onsettingsload.ts'
 import { networkForm } from '../../shared/form.ts'
 import { fadeOut } from '../../shared/dom.ts'
 import { storage } from '../../storage.ts'
+import { webdavSettings } from './webdav-settings.ts'
 
 import type { Local, SyncType } from '../../../types/local.ts'
 
@@ -23,6 +24,7 @@ const urlsyncform = networkForm('f_urlsync')
 
 export function synchronization(init?: Local, update?: SyncUpdate): void {
     if (init) {
+        webdavSettings(init)
         onSettingsLoad(() => {
             toggleSyncSettingsOption(init)
         })
@@ -136,7 +138,7 @@ async function updateSyncOption(update: SyncUpdate): Promise<void> {
     if (isSyncType(update.type)) {
         local.syncType = update.type
         storage.local.set({ syncType: local.syncType })
-        storage.type.change(update.type === 'browser' ? 'sync' : 'local', data)
+        await storage.type.change(update.type === 'browser' ? 'sync' : 'local', data)
 
         toggleSyncSettingsOption(local)
         handleStoragePersistence(update.type)
@@ -169,6 +171,7 @@ async function toggleSyncSettingsOption(local?: Local): Promise<void> {
     const gistToken = local?.gistToken
     const distantUrl = local?.distantUrl
     const type = local?.syncType
+    document.getElementById('webdav-sync')?.classList.toggle('shown', type === 'webdav')
 
     const iGistsync = document.querySelector<HTMLInputElement>('#i_gistsync')
     const iUrlsync = document.querySelector<HTMLInputElement>('#i_urlsync')
@@ -191,6 +194,7 @@ async function toggleSyncSettingsOption(local?: Local): Promise<void> {
     document.getElementById('disabled-sync')?.classList.toggle('shown', !choseStoragePersistence)
 
     switch (type) {
+        case 'webdav':
         case 'off':
         case 'browser': {
             document.getElementById('url-sync')?.classList.remove('shown')
@@ -235,7 +239,7 @@ async function toggleSyncSettingsOption(local?: Local): Promise<void> {
 // Type check
 
 function isSyncType(val = ''): val is SyncType {
-    return ['browser', 'gist', 'url', 'off'].includes(val)
+    return ['browser', 'gist', 'url', 'webdav', 'off'].includes(val)
 }
 
 // function isSyncFreq(val: string): val is SyncFreq {

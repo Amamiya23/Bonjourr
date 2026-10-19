@@ -4,6 +4,7 @@ import { handleGeolOption } from './settings.ts'
 import { getSunsetHour } from './index.ts'
 import { suntime } from '../../shared/time.ts'
 import { storage } from '../../storage.ts'
+import { requestApiWeather, weatherSourceKey } from './api.ts'
 
 import type { SimpleWeather } from '../../../types/shared.ts'
 import type { LastWeather } from '../../../types/local.ts'
@@ -11,10 +12,29 @@ import type { Weather } from '../../../types/sync.ts'
 import type { Coords } from './index.ts'
 
 export async function weatherCacheControl(data: Weather, lastWeather?: LastWeather): Promise<void> {
+    const cached = lastWeather?.sourceKey === weatherSourceKey(data) ||
+            (!lastWeather?.sourceKey && (!data.source || data.source === 'bonjourr'))
+        ? lastWeather
+        : undefined
+    const status = document.getElementById('weather-status')
+    try {
+        await updateWeatherCache(data, cached)
+        if (status) status.textContent = ''
+    } catch (error) {
+        if (cached) displayWeather(data, cached)
+        if (status) {
+            status.textContent = `${cached ? '显示上次天气。' : ''}${
+                error instanceof Error ? error.message : '天气暂不可用。'
+            }`
+        }
+    }
+}
+
+async function updateWeatherCache(data: Weather, lastWeather?: LastWeather): Promise<void> {
     handleForecastDisplay(data.forecast)
 
     if (!lastWeather) {
-        firstStartWeather(data)
+        await firstStartWeather(data)
         return
     }
 
@@ -38,6 +58,10 @@ export async function weatherCacheControl(data: Weather, lastWeather?: LastWeath
 export async function requestNewWeather(data: Weather, lastWeather?: LastWeather): Promise<LastWeather | undefined> {
     if (!navigator.onLine) {
         return lastWeather
+    }
+
+    if (data.source === 'uapi' || data.source === 'custom') {
+        return requestApiWeather(data)
     }
 
     const coords = await getGeolocation(data.geolocation)
@@ -102,6 +126,7 @@ export async function requestNewWeather(data: Weather, lastWeather?: LastWeather
     }
 
     return {
+        sourceKey: weatherSourceKey(data),
         timestamp: Date.now(),
         forecasted_timestamp: forecastedTimestamp,
         forecasted_high: forecastedHigh,
@@ -125,7 +150,9 @@ async function firstStartWeather(data: Weather): Promise<void> {
     const currentWeather = await requestNewWeather(data)
 
     if (currentWeather) {
-        data.city = currentWeather.approximation?.city ?? tradThis('City')
+        if (!data.source || data.source === 'bonjourr') {
+            data.city = currentWeather.approximation?.city ?? tradThis('City')
+        }
 
         storage.sync.set({ weather: data })
         storage.local.set({ lastWeather: currentWeather })

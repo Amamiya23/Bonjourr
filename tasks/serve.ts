@@ -1,59 +1,32 @@
-try {
-    const port = parseInt(Deno.args[0])
-    httpServer(port)
-} catch (_e) {
-    // console.log(_e)
+if (import.meta.main) httpServer(parseInt(Deno.args[0]))
+
+const CONTENT_TYPES: Record<string, string> = {
+    webmanifest: 'application/manifest+json',
+    js: 'text/javascript',
+    svg: 'image/svg+xml',
+    ico: 'image/x-icon',
+    mp3: 'audio/mpeg',
+    html: 'text/html',
+    png: 'image/png',
+    css: 'text/css',
+    json: 'application/json',
 }
 
-export function httpServer(port: number, baseUrl = 'release/online'): void {
-    const contentTypeList: Record<string, string> = {
-        '.webmanifest': 'application/manifest+json',
-        '.js': 'text/javascript',
-        '.svg': 'image/svg+xml',
-        '.ico': 'image/x-icon',
-        '.mp3': 'audio/mpeg',
-        '.html': 'text/html',
-        '.png': 'image/png',
-        '.css': 'text/css',
-    }
-
-    // Request handler
-    // actual meat of the server
-
-    const serverHandler = async (request: Request): Promise<Response> => {
-        const url = new URL(request.url)
-        const filePath = baseUrl + (url.pathname === '/' ? '/index.html' : url.pathname)
-
-        const headers: HeadersInit = { 'cache-control': 'no-cache' }
-        const fileExt = filePath.split('.').at(-1) ?? ''
-        const contentType = contentTypeList[fileExt]
-
-        if (contentType) {
-            headers['content-type'] = contentType
-        }
-
-        // Read data
-
+export async function previewResponse(request: Request, baseUrl = 'release/online'): Promise<Response> {
+    const url = new URL(request.url)
+    const filePath = baseUrl + (url.pathname === '/' ? '/index.html' : url.pathname)
+    const headers = new Headers({ 'cache-control': 'no-cache' })
+    const type = CONTENT_TYPES[filePath.split('.').at(-1)?.toLowerCase() ?? '']
+    if (type) headers.set('content-type', type)
+    try {
         const data = await Deno.readFile(filePath)
-
-        return new Response(data, {
-            headers: headers,
-            status: 200,
-        })
+        return new Response(data, { headers })
+    } catch (error) {
+        const missing = error instanceof Deno.errors.NotFound
+        return new Response(missing ? 'Not Found' : 'Internal Server Error', { status: missing ? 404 : 500 })
     }
+}
 
-    // Starts server
-    // catches errors
-
-    Deno.serve({ port }, async (request) => {
-        try {
-            return await serverHandler(request)
-        } catch (err) {
-            if (err instanceof Deno.errors.NotFound) {
-                return new Response('Not Found', { status: 404 })
-            } else {
-                return new Response('Internal Server Error', { status: 500 })
-            }
-        }
-    })
+export function httpServer(port: number, baseUrl = 'release/online'): Deno.HttpServer<Deno.NetAddr> {
+    return Deno.serve({ port }, (request) => previewResponse(request, baseUrl))
 }

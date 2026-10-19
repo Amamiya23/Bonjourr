@@ -1,0 +1,590 @@
+/* Preserve the quiet upper margin; compact the content, not its starting position. */
+#interface.compact:not(.move-edit) {
+    align-content: start;
+    grid-auto-rows: max-content;
+    padding-top: clamp(6rem, 16vh, 11rem);
+    row-gap: calc(1.25rem + var(--page-gap) / 2);
+}
+
+#interface.compact .digital {
+    font-size: calc(var(--clock-size) * 4.8);
+}
+
+#interface.compact #main:not(.hidden) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em 1.25em;
+    max-width: min(100%, 48em);
+}
+
+#interface.compact #greetings {
+    width: auto;
+    min-width: 0;
+    font-size: min(var(--greeting-size), 1.5em);
+}
+
+#interface.compact #weather {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    width: auto;
+}
+
+#interface.compact #description {
+    font-size: 1em;
+    min-height: 0;
+    margin: 0;
+}
+
+#interface.compact #tempContainer {
+    order: -1;
+    min-height: 0;
+    margin: 0;
+    column-gap: 0.35em;
+}
+
+#interface.compact .weather-icon {
+    width: 1.65em;
+    height: 1.65em;
+}
+
+#interface.compact #tempContainer .temp {
+    font-size: 1.2em;
+}
+
+#interface.compact #weather:not(:has(#tempContainer.he_hidden)) #current-temp,
+#interface.compact #forecast,
+#interface.compact #dotContainer {
+    display: none;
+}
+
+#weather-status {
+    flex-basis: 100%;
+    max-width: 40em;
+    font-size: 0.8em;
+    opacity: 0.8;
+}
+
+#weather-status:empty {
+    display: none;
+}
+
+#sb-engine {
+    flex: 0 1 auto;
+    width: auto;
+    max-width: 8.5em;
+    min-width: 0;
+    min-height: 2.75em;
+    margin-inline-start: 0.65em;
+    padding: 0.35em 0.5em;
+    border: none;
+    border-radius: 0.4em;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+#sb-engine[hidden] {
+    display: none;
+}
+
+#sb-engine-picker {
+    position: relative;
+    align-self: stretch;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    margin-inline-start: 0.5em;
+}
+
+#sb-engine-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    max-width: 11em;
+    min-height: 2.75em;
+    padding: 0.5em 0.65em;
+    color: rgb(var(--font-on-blur-color));
+    background: transparent;
+    border: none;
+    border-radius: 0.5em;
+    font: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+#sb-engine-toggle:hover,
+#sb-engine-toggle[aria-expanded='true'] {
+    background-color: rgb(var(--font-on-blur-color) / 0.08);
+}
+
+.engine-name {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 0.9em;
+}
+
+.engine-search-icon {
+    display: block;
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+}
+
+.engine-chevron {
+    flex: 0 0 0.35em;
+    width: 0.35em;
+    height: 0.35em;
+    margin-inline-start: 0.25em;
+    border-inline-end: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    transform: translateY(-0.1em) rotate(45deg);
+    opacity: 0.6;
+    transition: transform 0.15s var(--out-cubic);
+}
+
+#sb-engine-toggle[aria-expanded='true'] .engine-chevron {
+    transform: translateY(0.1em) rotate(225deg);
+}
+
+#sb-engine-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    inset-inline-start: -0.5em;
+    z-index: 6;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    width: min(180px, calc(100vw - 3em));
+    max-height: min(360px, 60vh);
+    overflow-y: auto;
+    padding: 6px;
+    border: 1px solid var(--color-dialog-border);
+    border-radius: 14px;
+    box-sizing: border-box;
+    background-color: var(--color-dialog);
+    color: var(--color-text);
+    text-shadow: none;
+    backdrop-filter: blur(4em);
+    -webkit-backdrop-filter: blur(4em);
+    box-shadow: 0 0 15px #0004;
+    font-size: 13px;
+    text-align: start;
+    animation: engine-menu-in 0.15s var(--out-cubic);
+    transform-origin: top left;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+}
+
+#sb-engine-menu[hidden] {
+    display: none;
+}
+
+#sb-engine-menu button {
+    display: flex;
+    align-items: center;
+    gap: 0.65em;
+    min-height: 36px;
+    min-width: 0;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    text-align: start;
+    font: inherit;
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s;
+}
+
+#sb-engine-menu button > span:first-child {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+#sb-engine-menu button.selected {
+    background-color: var(--color-dialog-input-bg);
+}
+
+#sb-engine-menu button:hover,
+#sb-engine-menu button:focus-visible {
+    color: white;
+    background-color: rgb(var(--accent-color));
+}
+
+#sb-engine-menu .engine-check {
+    margin-inline-start: auto;
+    color: rgb(var(--accent-color));
+    visibility: hidden;
+}
+
+#sb-engine-menu .selected .engine-check {
+    visibility: visible;
+}
+
+#sb-engine-menu button:hover .engine-check,
+#sb-engine-menu button:focus-visible .engine-check {
+    color: inherit;
+}
+
+@keyframes engine-menu-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+body.potato #sb-engine-menu,
+body.potato #app-page-form {
+    background-color: rgb(var(--color-param));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #sb-engine-menu {
+        animation: none;
+    }
+    #sb-engine-toggle,
+    #sb-engine-menu button,
+    .engine-chevron {
+        transition: none;
+    }
+}
+
+@media (pointer: coarse) {
+    #sb-engine-menu button {
+        min-height: 44px;
+    }
+}
+
+#sb-engine-toggle:focus-visible,
+#sb-engine-menu button:focus-visible {
+    outline: 2px solid rgb(var(--accent-color));
+    outline-offset: 2px;
+}
+
+#sb_container.opaque #sb-engine-toggle {
+    color: #333;
+}
+
+#sb_container.engine-menu-open {
+    z-index: 5;
+}
+
+#sb-engine option {
+    color: var(--color-text);
+    background: var(--color-settings);
+}
+
+#sb_container.opaque #sb-engine {
+    color: #333;
+}
+
+#searchbar-wrapper #searchbar {
+    min-width: 0;
+    padding-inline-start: 0.65em;
+}
+
+#sb_container #sb-suggestions {
+    top: calc(100% + 0.5em);
+}
+
+#interface.compact #searchbar {
+    height: 2.65em;
+    font-size: 1.1em;
+}
+
+#interface.compact #sb-buttons button {
+    padding-inline: 0.75em;
+}
+
+#linkblocks:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 100%;
+}
+
+#linkblocks #link-mini {
+    order: -3;
+    padding: 0 0 1.5em;
+}
+
+#link-mini > div {
+    justify-content: center;
+    gap: 0.5em;
+    max-width: 100%;
+}
+
+#link-mini .add-group {
+    position: static;
+    visibility: visible;
+}
+
+#app-page-form:not(.hidden) {
+    order: -2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75em;
+    max-width: min(100%, 30em);
+    padding: 12px;
+    margin-bottom: 1.5em;
+    box-sizing: border-box;
+    color: var(--color-text);
+    background-color: var(--color-dialog);
+    border: 1px solid var(--color-dialog-border);
+    border-radius: 14px;
+    backdrop-filter: blur(4em);
+    -webkit-backdrop-filter: blur(4em);
+    text-shadow: none;
+}
+
+#app-page-form.hidden,
+#webdav-import-file {
+    display: none;
+}
+
+#app-page-form input {
+    width: 14em;
+    max-width: 100%;
+    min-width: 0;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 8px;
+    color: inherit;
+    background-color: var(--color-dialog-input-bg);
+}
+
+#app-page-form input::placeholder {
+    color: var(--color-dialog-input-text);
+}
+
+#app-page-form button {
+    color: inherit;
+    font: inherit;
+    min-height: 36px;
+    padding: 4px 12px;
+    border-radius: 8px;
+    background-color: transparent;
+}
+
+#app-page-form button:hover,
+#app-page-form button:focus-visible {
+    color: white;
+    background-color: rgb(var(--accent-color));
+}
+
+#app-page-status {
+    flex-basis: 100%;
+}
+
+.link-group[data-empty='true']::after {
+    content: attr(data-empty-label);
+    display: block;
+    max-width: 28em;
+    padding: 2em 1em;
+    font-size: 0.9em;
+    opacity: 0.7;
+}
+
+/* Use the existing settings controls, with full-width rows for longer addresses. */
+aside .personal-form {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+}
+
+aside .personal-form > div {
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+aside .personal-form .wrapper {
+    gap: 12px;
+}
+
+aside .personal-form .wrapper > input,
+aside .personal-form .wrapper > select {
+    flex: 0 1 155px;
+    min-width: 0;
+}
+
+aside .personal-form .wrapper > label {
+    min-width: 0;
+    flex: 1;
+    line-height: 1.4;
+}
+
+aside .personal-form .weather-api-fields {
+    display: grid;
+    gap: 4px;
+}
+
+aside .personal-form .personal-field {
+    display: grid;
+    gap: 8px;
+    padding: 4px;
+}
+
+aside .personal-field > label,
+aside .personal-section-title {
+    font-size: 13px;
+    color: var(--color-light-text);
+    line-height: 1.5;
+}
+
+aside .personal-section-title {
+    padding: 4px;
+}
+
+aside .personal-field input {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+
+aside .personal-form input:disabled {
+    opacity: 0.6;
+}
+
+aside .personal-form .personal-submit {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px;
+}
+
+aside .personal-form button.param-btn {
+    width: auto;
+    max-width: none;
+    padding: 0 1em;
+    opacity: 1;
+    visibility: inherit;
+}
+
+aside .personal-form button.param-btn:disabled {
+    opacity: 0.66;
+    background-color: rgb(var(--accent-color) / 0.15);
+}
+
+aside .personal-hint {
+    padding: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--color-light-text);
+}
+
+aside .personal-status {
+    display: block;
+    padding: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--color-light-text);
+    overflow-wrap: anywhere;
+}
+
+aside .personal-status:empty {
+    display: none;
+}
+
+aside #webdav-status[data-state='pending'],
+aside #webdav-status[data-state='success'] {
+    color: var(--color-text);
+}
+
+aside #webdav-status[data-state='error'] {
+    color: rgb(var(--danger-color));
+}
+
+aside .personal-action-row {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+aside .personal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px;
+}
+
+aside .personal-action-row .personal-actions {
+    padding: 0;
+    margin-inline-start: auto;
+}
+
+#custom-search-engines .wrapper {
+    gap: 12px;
+}
+
+#custom-search-engines .wrapper > span {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+#custom-search-engines .param-btn {
+    flex-shrink: 0;
+}
+
+/* These sections now have variable-length forms and custom engine lists. */
+#main_options.shown,
+#searchbar_options.shown,
+#settings-sync-options.shown,
+#webdav-sync.shown {
+    max-height: none;
+}
+
+#weather-api-form[data-source='bonjourr'] .weather-api-fields,
+#main_options[data-weather-source='uapi'] #weather-api-form + hr,
+#main_options[data-weather-source='custom'] #weather-api-form + hr,
+#main_options[data-weather-source='uapi'] > .wrapper:has(#i_geol),
+#main_options[data-weather-source='custom'] > .wrapper:has(#i_geol),
+#main_options[data-weather-source='uapi'] #location_options,
+#main_options[data-weather-source='custom'] #location_options {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    #settings {
+        min-width: 0;
+    }
+
+    #interface.compact:not(.move-edit) {
+        padding-top: 12vh;
+        row-gap: 1.5em;
+    }
+
+    #sb-engine {
+        max-width: 6.5em;
+    }
+
+    #sb-engine-toggle {
+        gap: 0.4em;
+        padding-inline: 0.4em;
+    }
+
+    #sb-engine-toggle .engine-name {
+        max-width: 6em;
+    }
+
+    #sb-buttons #sb_empty,
+    #sb-buttons hr {
+        display: none;
+    }
+}

@@ -203,6 +203,8 @@ function removeLocationSuggestions(): void {
 }
 
 async function fillLocationSuggestions(): Promise<void> {
+    const { weather } = await storage.sync.get('weather')
+    if (weather.source && weather.source !== 'bonjourr') return
     const dlCityfound = document.querySelector<HTMLDataListElement>('#dl_cityfound')
     const iCity = document.getElementById('i_city') as HTMLInputElement
     const city = iCity.value

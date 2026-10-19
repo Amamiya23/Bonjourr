@@ -1035,6 +1035,47 @@
     <div id="main_options" class="dropdown">
         <hr />
 
+        <form id="weather-api-form" class="personal-form">
+            <div class="wrapper">
+                <label for="weather-api-source">天气数据源</label>
+                <select id="weather-api-source">
+                    <option value="uapi">UAPI</option>
+                    <option value="custom">自定义 API</option>
+                    <option value="bonjourr">Bonjourr</option>
+                </select>
+            </div>
+            <div class="weather-api-fields">
+                <div class="personal-field">
+                    <label for="weather-api-url">完整 API 地址</label>
+                    <input id="weather-api-url" type="url" placeholder="https://uapis.cn/api/v1/misc/weather" />
+                </div>
+                <div class="wrapper">
+                    <label for="weather-api-city">城市</label>
+                    <input id="weather-api-city" maxlength="64" placeholder="北京 / Tokyo"
+                        aria-describedby="weather-location-hint" />
+                </div>
+                <div class="wrapper">
+                    <label for="weather-api-adcode">行政区编码</label>
+                    <input id="weather-api-adcode" inputmode="numeric" maxlength="6" placeholder="110000"
+                        aria-describedby="weather-location-hint" />
+                </div>
+                <p id="weather-location-hint"
+                    class="personal-hint">位置留空时按 IP 定位；填写行政区编码后优先使用编码。</p>
+                <div class="wrapper">
+                    <label for="weather-api-key">API 密钥</label>
+                    <input id="weather-api-key" type="password" autocomplete="off" placeholder="uapi-…"
+                        aria-describedby="weather-key-hint" />
+                </div>
+                <p id="weather-key-hint"
+                    class="personal-hint">密钥仅保存在本机，不进入配置备份。自定义接口需兼容 UAPI，温度单位为摄氏度。</p>
+            </div>
+            <div class="personal-submit">
+                <button type="submit" class="param-btn">保存并测试天气</button>
+            </div>
+            <small id="weather-api-status" class="personal-status" role="status" aria-live="polite"></small>
+        </form>
+        <hr />
+
         <div class="wrapper">
             <label for="i_geol" class="trn">Geolocation</label>
 
@@ -1392,6 +1433,14 @@
         <hr />
 
         <div class="wrapper">
+            <span>统一搜索</span>
+            <button id="search-bookmarks-enable" type="button" class="param-btn">启用书签搜索</button>
+        </div>
+        <p class="personal-hint">搜索框会优先查找所有应用页面；网页搜索沿用当前选择的引擎。书签搜索需要浏览器授权。</p>
+        <small id="search-bookmarks-status" class="personal-status" role="status" aria-live="polite"></small>
+        <hr />
+
+        <div class="wrapper">
             <label for="i_sbnewtab" class="trn">Open in new tab</label>
             <input id="i_sbnewtab" class="switch" type="checkbox" />
         </div>
@@ -1403,7 +1452,7 @@
             <input id="i_sbsuggestions" class="switch" type="checkbox" />
         </div>
 
-        <div class="as as_searchbar dropdown">
+        <div class="searchbar-configuration">
             <hr />
 
             <div class="wrapper">
@@ -1414,18 +1463,9 @@
                     </button>
                 </span>
                 <select id="i_sbengine" class="choose_search">
-                    <option value="default" class="trn">Default</option>
                     <option value="google">Google</option>
-                    <option value="ddg">DuckDuckGo</option>
                     <option value="bing">Bing</option>
-                    <option value="yahoo">Yahoo</option>
-                    <option value="startpage">Startpage</option>
-                    <option value="brave">Brave</option>
-                    <option value="lilo">Lilo</option>
-                    <option value="ecosia">Ecosia</option>
-                    <option value="qwant">Qwant</option>
-                    <option value="baidu">Baidu</option>
-                    <option value="custom" class="trn">Custom</option>
+                    <option value="baidu" class="trn">Baidu</option>
                 </select>
             </div>
 
@@ -1439,27 +1479,31 @@
                 >Learn more</a>
             </p>
 
-            <div id="searchbar_request" class="dropdown">
+            <div id="searchbar_request">
                 <hr />
-                <div class="wrapper">
-                    <label for="i_sbrequest" class="trn">URL request</label>
-
-                    <form id="f_sbrequest" class="network-form">
-                        <div>
-                            <input
-                                id="i_sbrequest"
-                                name="sbrequest"
-                                type="text"
-                                placeholder="Search query: %s"
-                                maxlength="512"
-                            />
-                            <button type="submit">
-                                <span></span>
-                            </button>
-                        </div>
-                        <small class="network-form-warning"></small>
-                    </form>
-                </div>
+                <p class="personal-section-title trn">Add a search engine</p>
+                <form id="f_sbrequest" class="network-form personal-form">
+                    <div class="wrapper">
+                        <label for="i_sbname" class="trn">Engine name</label>
+                        <input id="i_sbname" name="sbname" type="text" maxlength="32" required />
+                    </div>
+                    <div class="personal-field">
+                        <label for="i_sbrequest" class="trn">Search URL (use %s for the query)</label>
+                        <input
+                            id="i_sbrequest"
+                            name="sbrequest"
+                            type="text"
+                            placeholder="Search query: %s"
+                            maxlength="512"
+                            required
+                        />
+                    </div>
+                    <div class="personal-submit">
+                        <button type="submit" class="param-btn trn">Add a search engine</button>
+                    </div>
+                    <small class="network-form-warning"></small>
+                </form>
+                <div id="custom-search-engines"></div>
             </div>
 
             <hr />
@@ -1487,7 +1531,7 @@
                     min="10"
                     max="60"
                     step="2"
-                    value="30"
+                    value="44"
                     class="range"
                 />
             </div>
@@ -2002,13 +2046,14 @@
 </div>
 
 <div class="param" id="settings-management">
-    <div id="settings-sync-options" class="as as_sync dropdown">
+    <div id="settings-sync-options" class="dropdown shown">
         <div class="wrapper">
             <label for="i_synctype" class="trn">Synchronization type</label>
 
             <select id="i_synctype">
                 <option class="trn not-online" value="browser" selected>Browser</option>
                 <option value="gist">Github Gist</option>
+                <option value="webdav">WebDAV</option>
                 <option class="trn" value="url">Distant URL</option>
                 <option class="trn" value="off">Disabled</option>
             </select>
@@ -2035,6 +2080,63 @@
                 <!-- deno-fmt-ignore -->
                 <span class="trn">Enabling persistent storage ensures that Firefox will remember your settings for as long as possible.</span>
             </p>
+        </div>
+
+        <div id="webdav-sync" class="dropdown">
+            <hr />
+            <form id="webdav-form" class="personal-form">
+                <div class="personal-field">
+                    <label for="webdav-url">WebDAV 服务地址</label>
+                    <input id="webdav-url" type="url" placeholder="https://example.com/dav/" required />
+                </div>
+                <div class="wrapper">
+                    <label for="webdav-directory">备份目录</label>
+                    <input id="webdav-directory" value="Bonjourr" placeholder="Bonjourr" maxlength="256"
+                        aria-describedby="webdav-directory-hint" />
+                </div>
+                <p id="webdav-directory-hint"
+                    class="personal-hint">默认使用 Bonjourr，可修改；留空使用服务地址所在目录。测试连接或上传时自动创建备份目录。</p>
+                <div class="wrapper">
+                    <label for="webdav-username">用户名</label>
+                    <input id="webdav-username" autocomplete="username" />
+                </div>
+                <div class="wrapper">
+                    <label for="webdav-password">密码</label>
+                    <input id="webdav-password" type="password" autocomplete="off"
+                        aria-describedby="webdav-credentials-hint" />
+                </div>
+                <p id="webdav-credentials-hint"
+                    class="personal-hint">支持应用密码；同步凭据仅保存在本机，不进入配置备份。</p>
+                <div class="personal-submit">
+                    <button id="webdav-test" class="param-btn" type="submit">保存并测试连接</button>
+                </div>
+                <small id="webdav-status" class="personal-status" role="status" aria-live="polite"
+                    aria-atomic="true"></small>
+            </form>
+            <hr />
+            <div class="wrapper personal-action-row">
+                <span>同步</span>
+                <div class="personal-actions">
+                    <button id="webdav-download" type="button" class="param-btn">下载</button>
+                    <button id="webdav-upload" type="button" class="param-btn">上传</button>
+                </div>
+            </div>
+            <div class="wrapper personal-action-row">
+                <span>远端快照</span>
+                <button id="webdav-snapshot" type="button" class="param-btn">另存快照</button>
+            </div>
+            <p
+                class="personal-hint">手动同步全部设置、应用、本地壁纸及图标。首次连接已有备份时请先下载；远端变更会阻止覆盖。快照保存在同一目录。</p>
+            <hr />
+            <p class="personal-section-title">本机备份</p>
+            <div class="personal-actions">
+                <button id="webdav-export" type="button" class="param-btn">导出完整备份</button>
+                <button id="webdav-import" type="button" class="param-btn">导入完整备份</button>
+                <button id="webdav-recover" type="button" class="param-btn input-btn">恢复覆盖前数据</button>
+            </div>
+            <input id="webdav-import-file" class="hidden" type="file" accept="application/json" />
+            <p
+                class="personal-hint">完整备份上限 50 MB，不含任何本机密钥和同步凭据。服务地址需已存在；网页版需要 WebDAV 服务器支持跨域。</p>
         </div>
 
         <div id="gist-sync" class="dropdown">
@@ -2217,68 +2319,7 @@
     </div>
 </div>
 
-<div id="settings-footer">
-    <div>
-        <div id="settings-footer-links">
-            <a href="https://bonjourr.fr" title="Bonjourr's website" rel="noreferrer noopener" class="site-link">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <use href="src/assets/labels/sprites.svg#icon-website"></use>
-                </svg>
-            </a>
-
-            <a href="https://discord.com/invite/CCAR9J4qVg" title="Bonjourr's Discord server" rel="noreferrer noopener">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <use href="src/assets/labels/sprites.svg#icon-discord"></use>
-                </svg>
-            </a>
-
-            <a href="https://bsky.app/profile/bonjourr.fr" title="Join us on Bluesky" rel="noreferrer noopener">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <use href="src/assets/labels/sprites.svg#icon-bluesky"></use>
-                </svg>
-            </a>
-
-            <a
-                href="https://github.com/victrme/Bonjourr"
-                title="Bonjourr's GitHub repository"
-                rel="noreferrer noopener"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <use href="src/assets/labels/sprites.svg#icon-github"></use>
-                </svg>
-            </a>
-        </div>
-    </div>
-
-    <div id="made-in">
-        <p class="trn">Crafted in France with ❤️</p>
-        <p>
-            <span class="trn">by</span>
-            <a id="signature-one" href="#" rel="noreferrer noopener"></a>
-            <span> & </span>
-            <a id="signature-two" href="#" rel="noreferrer noopener"></a>
-        </p>
-    </div>
-
-    <div id="donate">
-        <a
-            href="https://ko-fi.com/bonjourr"
-            class="param-btn"
-            title="Donate to Bonjourr on Ko-fi"
-            aria-label="Donate to Bonjourr on Ko-fi"
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <use href="src/assets/labels/sprites.svg#icon-heart"></use>
-            </svg>
-
-            <span class="trn">Support Bonjourr</span>
-        </a>
-    </div>
-
-    <p id="bonjourr-version">
-        <a id="version" href="https://github.com/victrme/Bonjourr/releases" rel="noreferrer noopener">0.0.0</a>
-    </p>
-</div>
+<div id="settings-footer" aria-hidden="true"></div>
 
 <template id="timezones-select-template">
     <optgroup label="Abbreviation Timezones">

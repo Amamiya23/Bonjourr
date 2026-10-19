@@ -7,6 +7,7 @@ document.body.innerHTML = `
     <button id="b_interface-quotes-refresh"></button>
     <form id="sb_container">
         <input id="searchbar" />
+        <ul id="sb-suggestions"></ul>
     </form>
 `
 
@@ -20,7 +21,7 @@ Deno.test({
     sanitizeResources: false,
     fn: () => {
         assertEquals(submitSearch('bonjourr', true), [
-            ['https://duckduckgo.com/?q=bonjourr', '_blank', 'noopener'],
+            ['https://www.bing.com/search?q=bonjourr', '_blank', 'noopener'],
         ])
     },
 })
@@ -31,7 +32,7 @@ Deno.test({
     sanitizeResources: false,
     fn: () => {
         assertEquals(submitSearch('bonjourr', false), [
-            ['https://duckduckgo.com/?q=bonjourr', '_self'],
+            ['https://www.bing.com/search?q=bonjourr', '_self'],
         ])
     },
 })
@@ -56,6 +57,42 @@ Deno.test({
     },
 })
 
+Deno.test({
+    name: 'Unified search renders app results even when online suggestions are disabled',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const { storage } = await import('../../src/scripts/storage.ts')
+        const { SYNC_DEFAULT } = await import('../../src/scripts/defaults.ts')
+        localStorage.bonjourr = JSON.stringify({
+            ...SYNC_DEFAULT,
+            app: { _id: 'app', title: 'My application', url: 'https://example.com/app', parent: '工作', order: 0 },
+        })
+        await storage.init()
+        const container = document.getElementById('sb_container') as HTMLFormElement
+        const input = document.getElementById('searchbar') as HTMLInputElement
+        container.dataset.suggestions = 'false'
+        Object.defineProperty(document.body, 'offsetHeight', { configurable: true, value: 900 })
+        input.value = 'application'
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        const result = document.querySelector<HTMLElement>('#sb-suggestions li.shown')
+        assertEquals(result?.dataset.url, 'https://example.com/app')
+        const originalOpen = globalThis.open
+        const calls: unknown[][] = []
+        globalThis.open = ((...args: unknown[]) => {
+            calls.push(args)
+            return null
+        }) as typeof globalThis.open
+        try {
+            result?.click()
+            assertEquals(calls[0]?.[0], 'https://example.com/app')
+        } finally {
+            globalThis.open = originalOpen
+        }
+    },
+})
+
 /*
  * Functions
  */
@@ -66,7 +103,7 @@ function submitSearch(value: string, newtab: boolean): unknown[][] {
     const calls: unknown[][] = []
     const originalOpen = globalThis.open
 
-    container.dataset.engine = 'ddg'
+    container.dataset.engine = 'bing'
     container.dataset.newtab = newtab.toString()
     input.value = value
     globalThis.open = ((...args: unknown[]) => {

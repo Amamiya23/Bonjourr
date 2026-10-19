@@ -1,6 +1,7 @@
 import type { BackgroundImage, BackgroundVideo, Frequency, Link, PomodoroMode, Widgets } from './shared.ts'
 
 export interface Sync {
+    compactLayout?: boolean
     advanced: Advanced
     showall: boolean
     quicklinks: boolean
@@ -23,6 +24,7 @@ export interface Sync {
     reviewPopup?: number | string
     css: string
     lang: string
+    languageMode?: 'system' | 'manual'
     favicon: string
     tabtitle: string
     greeting: string
@@ -143,6 +145,7 @@ export interface WorldClock {
 }
 
 export interface Searchbar {
+    customEngines?: CustomSearchEngine[]
     on: boolean
     width?: number
     newtab: boolean
@@ -152,6 +155,12 @@ export interface Searchbar {
     suggestions: boolean
     placeholder: string
     background?: string
+}
+
+export interface CustomSearchEngine {
+    id: string
+    name: string
+    url: string
 }
 
 export interface Font {
@@ -209,6 +218,9 @@ export interface Supporters {
 }
 
 export interface Weather {
+    source?: 'bonjourr' | 'uapi' | 'custom'
+    apiUrl?: string
+    adcode?: string
     ccode?: string
     city?: string
     unit: 'metric' | 'imperial'

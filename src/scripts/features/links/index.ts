@@ -147,7 +147,7 @@ export function initblocks(sync: Sync, local?: Local): true {
     const activeGroups: LinkGroups = []
 
     for (const group of [...pinned, selected]) {
-        const div = document.querySelector<HTMLDivElement>(`.link-group[data-group="${group}"]`)
+        const div = document.querySelector<HTMLDivElement>(`.link-group[data-group="${CSS.escape(group)}"]`)
         const folder = div?.dataset.folder
         const lis: HTMLLIElement[] = []
         const links = folder ? getLinksInFolder(sync, folder) : getLinksInGroup(sync, group)
@@ -227,6 +227,10 @@ export function initblocks(sync: Sync, local?: Local): true {
         }
 
         linkgroup.dataset.group = group.title
+        linkgroup.dataset.empty = String(group.links.length === 0)
+        linkgroup.dataset.emptyLabel = tradThis(
+            'No apps on this page yet. Right-click to add one, or open Quick Links settings.',
+        )
         linkgroup.classList.toggle('pinned', group.pinned)
         linkgroup.classList.toggle('synced', group.synced)
         linklist.appendChild(fragment)
@@ -488,7 +492,7 @@ export async function linksUpdate(update: LinksUpdate): Promise<void> {
         return
     }
 
-    storage.sync.set(data)
+    await storage.sync.set(data)
 }
 
 function linkSubmission(args: SubmitLink | SubmitFolder, data: Sync): Sync {

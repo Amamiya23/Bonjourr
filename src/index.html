@@ -319,8 +319,7 @@
                             <svg class="contextmenu-icon" aria-hidden="true">
                                 <use
                                     href="src/assets/interface/contextmenu-sprites.svg#contextmenu-background-download"
-                                >
-                                </use>
+                                ></use>
                             </svg>
                         </span>
 
@@ -373,8 +372,8 @@
                     >
                         <span class="iconContainer">
                             <svg class="contextmenu-icon" aria-hidden="true">
-                                <use href="src/assets/interface/contextmenu-sprites.svg#contextmenu-background-refresh">
-                                </use>
+                                <use
+                                    href="src/assets/interface/contextmenu-sprites.svg#contextmenu-background-refresh"></use>
                             </svg>
                         </span>
                         <span class="trn">Next background</span>
@@ -550,12 +549,18 @@
                         <span class="temp"><span class="temp-value"></span><span class="temp-unit"></span></span>
                     </div>
                 </a>
+                <small id="weather-status" role="status" aria-live="polite"></small>
             </div>
 
             <div id="notes_container" class="hidden"></div>
 
             <form id="sb_container" class="hidden">
                 <div id="searchbar-wrapper">
+                    <select id="sb-engine" aria-label="搜索引擎" title="切换搜索引擎">
+                        <option value="google">Google</option>
+                        <option value="bing">Bing</option>
+                        <option value="baidu" class="trn">Baidu</option>
+                    </select>
                     <input
                         id="searchbar"
                         type="text"
@@ -616,8 +621,7 @@
                         >
                             <path
                                 d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80L0 432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"
-                            >
-                            </path>
+                            ></path>
                         </svg>
                     </button>
 
@@ -630,8 +634,7 @@
                         >
                             <path
                                 d="M48 64C21.5 64 0 85.5 0 112L0 400c0 26.5 21.5 48 48 48l32 0c26.5 0 48-21.5 48-48l0-288c0-26.5-21.5-48-48-48L48 64zm192 0c-26.5 0-48 21.5-48 48l0 288c0 26.5 21.5 48 48 48l32 0c26.5 0 48-21.5 48-48l0-288c0-26.5-21.5-48-48-48l-32 0z"
-                            >
-                            </path>
+                            ></path>
                         </svg>
                     </button>
 
@@ -662,9 +665,16 @@
             </div>
 
             <div id="linkblocks">
-                <div id="link-mini">
+                <div id="link-mini" aria-label="应用分页">
                     <div></div>
                 </div>
+                <form id="app-page-form" class="hidden">
+                    <label for="app-page-name">页面名称</label>
+                    <input id="app-page-name" maxlength="32" placeholder="例如：工作、生活" required />
+                    <button type="submit">创建页面</button>
+                    <button type="button" id="app-page-cancel">取消</button>
+                    <small id="app-page-status" role="status"></small>
+                </form>
             </div>
 
             <div id="quotes_container" class="hidden">
@@ -878,62 +888,62 @@
 
             <!-- help-mode -->
             <style>
-                #help-mode-prompt {
-                    position: fixed;
-                    top: 40vh;
-                    left: 0;
-                    right: 0;
-                    color: #eeeeee;
-                    font-family: system-ui;
-                    font-size: 1em;
-                    text-align: center;
-                    z-index: 1;
-                }
+            #help-mode-prompt {
+                position: fixed;
+                top: 40vh;
+                left: 0;
+                right: 0;
+                color: #eeeeee;
+                font-family: system-ui;
+                font-size: 1em;
+                text-align: center;
+                z-index: 1;
+            }
 
-                #help-mode-prompt h1 {
-                    margin-bottom: 0;
-                }
+            #help-mode-prompt h1 {
+                margin-bottom: 0;
+            }
 
-                #help-mode-prompt p {
-                    margin-top: 0.5em;
-                }
+            #help-mode-prompt p {
+                margin-top: 0.5em;
+            }
 
-                #help-buttons {
-                    margin-top: 1.5em;
-                    display: flex;
-                    justify-content: center;
-                    gap: 1em;
-                }
+            #help-buttons {
+                margin-top: 1.5em;
+                display: flex;
+                justify-content: center;
+                gap: 1em;
+            }
 
-                .help-btn {
-                    cursor: pointer;
-                    height: 31px;
-                    padding: 0 1em;
-                    color: rgb(var(--accent-color));
-                    border: none;
-                    border-radius: 1em;
-                    white-space: nowrap;
-                    background-color: rgb(var(--accent-color) / 0.25);
-                    display: inline-flex;
-                    justify-content: center;
-                    align-items: center;
-                    gap: 5px;
-                }
+            .help-btn {
+                cursor: pointer;
+                height: 31px;
+                padding: 0 1em;
+                color: rgb(var(--accent-color));
+                border: none;
+                border-radius: 1em;
+                white-space: nowrap;
+                background-color: rgb(var(--accent-color) / 0.25);
+                display: inline-flex;
+                justify-content: center;
+                align-items: center;
+                gap: 5px;
+            }
 
-                .help-btn:hover {
-                    background-color: rgb(var(--accent-color) / 0.35);
-                }
+            .help-btn:hover {
+                background-color: rgb(var(--accent-color) / 0.35);
+            }
 
-                .help-btn[disabled] {
-                    color: #777777;
-                    background-color: #282828;
-                    cursor: not-allowed;
-                }
+            .help-btn[disabled] {
+                color: #777777;
+                background-color: #282828;
+                cursor: not-allowed;
+            }
 
-                .help-btn.danger:hover {
-                    color: rgb(var(--danger-color));
-                    background-color: rgb(var(--danger-color) / 0.25);
-                }
+            .help-btn.danger:hover {
+                color: rgb(var(--danger-color));
+                background-color: rgb(var(--danger-color) / 0.25);
+            }
             </style>
         </div>
     </body>

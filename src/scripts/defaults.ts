@@ -1,4 +1,4 @@
-import { langList } from './langs.ts'
+import { systemLanguage } from './utils/language.ts'
 
 import type { Navigator } from '../types/shared.ts'
 import type { Local } from '../types/local.ts'
@@ -59,14 +59,7 @@ export const IS_MOBILE = navigator.userAgentData
     ? navigator.userAgentData.mobile
     : mobileUA.some((ua) => navigator.userAgent.includes(ua))
 
-const DEFAULT_LANG = (() => {
-    for (const code of Object.keys(langList)) {
-        if (navigator.language.replace('-', '_').includes(code)) {
-            return code as keyof typeof langList
-        }
-    }
-    return 'en'
-})()
+const DEFAULT_LANG = systemLanguage()
 
 // Countries that use imperial units (Fahrenheit): US, Liberia, Myanmar, some Caribbean islands
 const DEFAULT_UNIT = (() => {
@@ -76,21 +69,13 @@ const DEFAULT_UNIT = (() => {
 })()
 
 export const SEARCHBAR_ENGINES = [
-    'default',
     'google',
-    'ddg',
-    'startpage',
-    'qwant',
-    'yahoo',
     'bing',
-    'brave',
-    'ecosia',
-    'lilo',
     'baidu',
-    'custom',
 ] as const
 
 export const SYNC_DEFAULT: Sync = {
+    compactLayout: true,
     about: {
         browser: PLATFORM,
         version: CURRENT_VERSION,
@@ -101,6 +86,7 @@ export const SYNC_DEFAULT: Sync = {
     },
     showall: false,
     lang: DEFAULT_LANG,
+    languageMode: 'system',
     dark: 'system',
     favicon: '',
     tabtitle: '',
@@ -125,7 +111,7 @@ export const SYNC_DEFAULT: Sync = {
     linksrow: 6,
     linkiconradius: 1.1,
     linkgroups: {
-        on: false,
+        on: true,
         selected: 'default',
         groups: ['default'],
         pinned: [],
@@ -166,6 +152,8 @@ export const SYNC_DEFAULT: Sync = {
     },
     worldclocks: [],
     weather: {
+        source: 'uapi',
+        apiUrl: 'https://uapis.cn/api/v1/misc/weather',
         city: undefined,
         unit: DEFAULT_UNIT,
         show_unit: false,
@@ -188,11 +176,11 @@ export const SYNC_DEFAULT: Sync = {
         align: 'left',
     },
     searchbar: {
-        on: false,
+        on: true,
         opacity: 0.1,
         newtab: false,
         suggestions: true,
-        engine: 'default',
+        engine: 'google',
         request: '',
         placeholder: '',
     },
@@ -232,11 +220,20 @@ export const SYNC_DEFAULT: Sync = {
     },
     move: {
         selection: 'single',
-        layouts: {},
+        layouts: {
+            single: {
+                grid: [['time'], ['main'], ['searchbar'], ['quicklinks']],
+                items: {} as NonNullable<Sync['move']['layouts']['single']>['items'],
+            },
+        },
     },
 }
 
 export const LOCAL_DEFAULT: Local = {
+    weatherApiKey: '',
+    weatherApiOrigin: '',
+    weatherRetryAt: 0,
+    webdav: undefined,
     syncType: PLATFORM === 'online' ? 'off' : 'browser',
     gistToken: '',
     userQuoteSelection: 0,

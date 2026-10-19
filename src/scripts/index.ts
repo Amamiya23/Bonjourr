@@ -10,6 +10,8 @@ import { quickLinks } from './features/links/index.ts'
 import { searchbar } from './features/searchbar.ts'
 import { customCss } from './features/css.ts'
 import { weather } from './features/weather/index.ts'
+import { weatherApiSettings } from './features/weather/api-settings.ts'
+import { personalLayout } from './features/personal-layout.ts'
 import { quotes } from './features/quotes.ts'
 import { pomodoro } from './features/pomodoro.ts'
 import { notes } from './features/notes.ts'
@@ -32,7 +34,7 @@ import { storage } from './storage.ts'
 import { BROWSER, CURRENT_VERSION, LOCAL_DEFAULT, PLATFORM, SYNC_DEFAULT, SYSTEM_OS } from './defaults.ts'
 
 try {
-    startup()
+    startup().catch((error) => console.error('Startup failed', error))
     serviceWorker()
     onlineAndMobile()
 } catch (_) {
@@ -73,6 +75,7 @@ async function startup(): Promise<void> {
     userDate(sync.clock.timezone)
     suntime(local.lastWeather?.sunrise, local.lastWeather?.sunset)
     weather({ sync: sync, lastWeather: local.lastWeather })
+    weatherApiSettings(sync, local)
     customFont(sync.font)
     textShadow(sync.textShadow)
     favicon(sync.favicon)
@@ -84,6 +87,7 @@ async function startup(): Promise<void> {
     pomodoro(sync.pomodoro)
     notes(sync.notes)
     moveElements(sync.move)
+    personalLayout(sync)
     customCss(sync.css)
     hideElements(sync.hide)
     backgroundsInit(sync, local, true)
@@ -120,3 +124,8 @@ async function startup(): Promise<void> {
         })
     })
 }
+
+globalThis.addEventListener('languagechange', async () => {
+    const data = await storage.sync.get()
+    if (data.languageMode !== 'manual') globalThis.location.reload()
+})

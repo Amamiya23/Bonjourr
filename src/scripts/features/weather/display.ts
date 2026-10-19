@@ -90,7 +90,7 @@ export function displayWeather(data: Weather, lastWeather: LastWeather): void {
 
     const handleForecastData = () => {
         const forecastdom = document.getElementById('forecast')
-        const day = date.getHours() > getSunsetHour() ? 'tomorrow' : 'today'
+        const day = new Date(lastWeather.forecasted_timestamp).getDate() !== date.getDate() ? 'tomorrow' : 'today'
         let string = ''
         if (day === 'today') {
             string += tradThis('with a high of <temp1> today')
@@ -138,7 +138,12 @@ export function displayWeather(data: Weather, lastWeather: LastWeather): void {
     handleMoreInfo()
     handleDescription()
     handleForecastData()
+    if (lastWeather.hasForecast === false) document.getElementById('forecast')?.classList.remove('shown')
     handleShowUnit(data.show_unit)
+    weatherdom?.setAttribute(
+        'title',
+        [lastWeather.approximation?.city, lastWeather.description].filter(Boolean).join(' · '),
+    )
 
     if (weatherFirstStart) {
         weatherFirstStart = false

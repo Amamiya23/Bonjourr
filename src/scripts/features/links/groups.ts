@@ -1,6 +1,5 @@
 import { getLinksInGroup } from './helpers.ts'
-import { openContextMenu } from '../contextmenu.ts'
-import { initblocks } from './index.ts'
+import { initblocks, linksUpdate } from './index.ts'
 import { startDrag } from './drag.ts'
 
 import { transitioner } from '../../utils/transitioner.ts'
@@ -21,10 +20,46 @@ export function initGroups(data: Sync, init?: true): void {
     createGroups(data.linkgroups)
 
     // navigating through groups with scroll wheel
-    document.querySelector('#link-mini')?.addEventListener('wheel', (event) => {
-        changeGroup(event)
-        event.preventDefault()
-    }, { passive: false })
+    if (init) {
+        document.querySelector('#link-mini')?.addEventListener('wheel', (event) => {
+            changeGroup(event)
+            event.preventDefault()
+        }, { passive: false })
+    }
+    if (init) {
+        const form = document.querySelector<HTMLFormElement>('#app-page-form')
+        const input = document.querySelector<HTMLInputElement>('#app-page-name')
+        const status = document.getElementById('app-page-status')
+        form?.addEventListener('submit', async (event) => {
+            event.preventDefault()
+            const title = input?.value.trim() ?? ''
+            const current = await storage.sync.get()
+            if (!title || title === '+' || title === 'default' || current.linkgroups.groups.includes(title)) {
+                if (status) status.textContent = '请输入不重复的页面名称。'
+                return
+            }
+            await linksUpdate({ addGroups: [{ title }], groups: true })
+            form.classList.add('hidden')
+            if (input) input.value = ''
+            if (status) status.textContent = ''
+        })
+        document.getElementById('app-page-cancel')?.addEventListener('click', () => form?.classList.add('hidden'))
+        document.querySelector('#link-mini')?.addEventListener('keydown', (event) => {
+            const e = event as KeyboardEvent
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return
+            const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.link-title:not(.add-group)'))
+            if (!buttons.length) return
+            const index = buttons.indexOf(document.activeElement as HTMLButtonElement)
+            const next = e.key === 'Home'
+                ? 0
+                : e.key === 'End'
+                ? buttons.length - 1
+                : (index + (e.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length
+            e.preventDefault()
+            buttons[next].click()
+            buttons[next].focus()
+        })
+    }
 }
 
 function createGroups(linkgroups: LinkGroups): void {
@@ -52,13 +87,18 @@ function createGroups(linkgroups: LinkGroups): void {
         }
 
         if (isDefault) {
-            button.textContent = tradThis('Default group')
+            button.textContent = tradThis('Favorites')
         }
 
         if (isAddMore) {
             button.classList.add('add-group')
-            button.addEventListener('click', openContextMenu)
+            button.setAttribute('aria-label', tradThis('New app page'))
+            button.addEventListener('click', () => {
+                document.getElementById('app-page-form')?.classList.remove('hidden')
+                document.getElementById('app-page-name')?.focus()
+            })
         } else {
+            button.setAttribute('aria-pressed', String(group === selected))
             button.addEventListener('click', changeGroup)
             button.addEventListener('pointerdown', startDrag)
         }
@@ -107,8 +147,10 @@ function changeGroup(event: Event): void {
 
         for (const div of buttons ?? []) {
             div.classList.remove('selected-group')
+            div.setAttribute('aria-pressed', 'false')
         }
         button.classList.add('selected-group')
+        button.setAttribute('aria-pressed', 'true')
         data.linkgroups.selected = group
         storage.sync.set(data)
         initblocks(data)

@@ -1,4 +1,4 @@
-import { EXTENSION, IS_MOBILE, PLATFORM, SEARCHBAR_ENGINES } from '../defaults.ts'
+import { EXTENSION, SYNC_DEFAULT } from '../defaults.ts'
 import { opacityFromHex, stringMaxSize } from '../shared/generic.ts'
 import { hexColorFromSplitRange } from '../shared/dom.ts'
 import { getLang, tradThis } from '../utils/translations.ts'
@@ -6,13 +6,18 @@ import { eventDebounce } from '../utils/debounce.ts'
 import { apiWebSocket } from '../shared/api.ts'
 import { storage } from '../storage.ts'
 import { parse } from '../utils/parse.ts'
+import { searchLinks } from './search-index.ts'
+import type { SearchResult } from './search-index.ts'
+import { getPermissions } from '../utils/permissions.ts'
+import { initEnginePicker, updateEnginePicker } from './search-engines.ts'
 
-import type { SearchEngines } from '../../types/shared.ts'
 import type { Searchbar } from '../../types/sync.ts'
 import { networkForm } from '../shared/form.ts'
-import { toggleSettingsDropdown } from '../settings.ts'
+import { configuredEngines, validSearchTemplate } from './search-engine-config.ts'
+import { onSettingsLoad } from '../utils/onsettingsload.ts'
 
 type SearchbarUpdate = {
+    removeEngine?: string
     engine?: string
     newtab?: boolean
     width?: string
@@ -22,17 +27,23 @@ type SearchbarUpdate = {
     background?: true
 }
 
-type Suggestions = {
-    text: string
-    desc?: string
-    image?: string
-}[]
+type Suggestions = SearchResult[]
 
 type UndefinedElement = Element | undefined | null
 
 const customEngineForm = networkForm('f_sbrequest')
 
 let socket: WebSocket | undefined
+let localResults: Suggestions = []
+let remoteResults: Suggestions = []
+let inputRevision = 0
+let sentQuery = ''
+let waitingForRemote = false
+let remoteTimer: ReturnType<typeof setTimeout>
+let socketPromise: Promise<void> | undefined
+let suggestionsReady = false
+let bookmarkIndex: { title: string; url: string }[] = []
+let searchConfig: Searchbar = structuredClone(SYNC_DEFAULT.searchbar)
 const domainPattern = /^(?!.*\s)(?:https?:\/\/)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z0-9-]{2,})/i
 
 const domsuggestions = document.getElementById('sb-suggestions') as HTMLUListElement | undefined
@@ -42,12 +53,20 @@ const dombuttons = document.getElementById('sb-buttons') as HTMLDivElement | und
 const emptyButton = document.getElementById('sb_empty')
 
 const display = (shown = false) => domcontainer?.classList.toggle('hidden', !shown)
-const setEngine = (value = 'google') => domcontainer?.setAttribute('data-engine', value)
+const setEngine = (value = 'google') => {
+    domcontainer?.setAttribute('data-engine', value)
+    for (const id of ['sb-engine', 'i_sbengine']) {
+        const select = document.getElementById(id) as HTMLSelectElement | null
+        if (select) select.value = value
+        if (select?.id === 'sb-engine') updateEnginePicker(select)
+    }
+}
 const setRequest = (value = '') => domcontainer?.setAttribute('data-request', stringMaxSize(value, 512))
 const setNewtab = (value = false) => domcontainer?.setAttribute('data-newtab', value.toString())
 const setSuggestions = (value = true) => domcontainer?.setAttribute('data-suggestions', value.toString())
-const setPlaceholder = (value = '') => domsearchbar?.setAttribute('placeholder', value)
-const setWidth = (value = 30) =>
+const setPlaceholder = (value = '') =>
+    domsearchbar?.setAttribute('placeholder', value || tradThis('Search apps, bookmarks or the web'))
+const setWidth = (value = 44) =>
     document.documentElement.style.setProperty('--searchbar-width', `${value.toString()}em`)
 const setBackground = (value = '#fff2') => {
     document.documentElement.style.setProperty('--searchbar-background', value)
@@ -63,9 +82,14 @@ export function searchbar(init?: Searchbar, update?: SearchbarUpdate): void {
     }
 
     try {
+        searchConfig = { ...SYNC_DEFAULT.searchbar, ...init }
+        if (!configuredEngines(searchConfig).some((engine) => engine.id === searchConfig.engine)) {
+            searchConfig.engine = 'google'
+        }
         display(init?.on)
         setWidth(init?.width)
-        setEngine(init?.engine)
+        refreshEngineOptions()
+        setEngine(searchConfig.engine)
         setRequest(init?.request)
         setNewtab(init?.newtab)
         setPlaceholder(init?.placeholder)
@@ -84,12 +108,46 @@ export function searchbar(init?: Searchbar, update?: SearchbarUpdate): void {
         })
 
         document.addEventListener('keydown', searchbarShortcut)
+        const engine = document.querySelector<HTMLSelectElement>('#sb-engine')
+        if (engine) {
+            engine.value = searchConfig.engine
+            initEnginePicker(engine)
+            engine.addEventListener('change', async () => {
+                setEngine(engine.value)
+                searchbar(undefined, { engine: engine.value })
+                remoteResults = []
+                if (domsearchbar?.value) handleUserInput(new Event('input'))
+                domsearchbar?.focus()
+            })
+        }
+        domsearchbar?.addEventListener('focus', () => {
+            void loadBookmarkIndex().catch(() => {
+                bookmarkIndex = []
+            })
+        })
+        onSettingsLoad(renderCustomEngines)
+        document.addEventListener('language-updated', () => {
+            setPlaceholder(searchConfig.placeholder)
+            refreshEngineOptions()
+            renderCustomEngines()
+        })
+        document.getElementById('search-bookmarks-enable')?.addEventListener('click', async () => {
+            const status = document.getElementById('search-bookmarks-status')
+            try {
+                const allowed = await getPermissions('bookmarks')
+                if (status) status.textContent = allowed ? '已启用书签搜索。' : '未获得书签权限。'
+                if (allowed) await loadBookmarkIndex()
+            } catch (_) {
+                if (status) status.textContent = '网页版无法访问浏览器书签，应用搜索仍可使用。'
+            }
+        })
     } catch (_) {
         //...
     }
 }
 
 async function updateSearchbar({
+    removeEngine,
     engine,
     newtab,
     background,
@@ -104,8 +162,7 @@ async function updateSearchbar({
         return
     }
 
-    if (isValidEngine(engine)) {
-        toggleSettingsDropdown('searchbar_request', engine === 'custom')
+    if (engine && isValidEngine(engine)) {
         searchbar.engine = engine
         setEngine(engine)
     }
@@ -144,29 +201,83 @@ async function updateSearchbar({
 
         const formdata = new FormData(form)
         const value = formdata.get('sbrequest')?.toString() ?? ''
-        const noQueryPlaceholder = !value.includes('%s') && value.length > 0
-        const badCustomDomain = !value.match(domainPattern)
-
-        if (badCustomDomain) {
+        const name = String(formdata.get('sbname') ?? '').trim().slice(0, 32)
+        if (!name) {
+            customEngineForm.warn(tradThis('Enter an engine name.'))
+            return
+        }
+        if (!validSearchTemplate(value)) {
             customEngineForm.warn(tradThis('URL seems wrong'))
             return
         }
-        if (noQueryPlaceholder) {
-            customEngineForm.warn(tradThis('No %s present in URL'))
+        const customEngines = searchbar.customEngines ?? []
+        const existing = customEngines.find((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase())
+        if (customEngines.length >= 20 && !existing) {
+            customEngineForm.warn(tradThis('You can add up to 20 search engines.'))
             return
         }
-
-        searchbar.request = stringMaxSize(value, 512)
-        setRequest(searchbar.request)
+        if (existing) existing.url = stringMaxSize(value, 512)
+        else customEngines.push({ id: `user-${crypto.randomUUID()}`, name, url: stringMaxSize(value, 512) })
+        searchbar.customEngines = customEngines
+        searchbar.engine = existing?.id ?? customEngines.at(-1)!.id
+        form.reset()
         customEngineForm.accept()
+    }
+
+    if (removeEngine) {
+        searchbar.customEngines = searchbar.customEngines?.filter((item) => item.id !== removeEngine)
+        if (removeEngine === 'custom') searchbar.request = ''
+        if (searchbar.engine === removeEngine) searchbar.engine = 'google'
+    }
+
+    searchConfig = searchbar
+    refreshEngineOptions()
+    setEngine(searchbar.engine)
+    renderCustomEngines()
+
+    if (request || removeEngine || engine) {
+        await storage.sync.set({ searchbar })
+        return
     }
 
     eventDebounce({ searchbar })
 }
 
-//
-//	Search Submission
-//
+function refreshEngineOptions(): void {
+    const engines = configuredEngines(searchConfig)
+    for (const id of ['sb-engine', 'i_sbengine']) {
+        const select = document.getElementById(id) as HTMLSelectElement | null
+        if (!select) continue
+        select.replaceChildren(...engines.map((engine) => {
+            const option = document.createElement('option')
+            option.value = engine.id
+            option.textContent = engine.id === 'baidu' ? tradThis('Baidu') : engine.name
+            return option
+        }))
+        select.value = engines.some((item) => item.id === searchConfig.engine) ? searchConfig.engine : 'google'
+        if (id === 'sb-engine') initEnginePicker(select)
+    }
+}
+
+function renderCustomEngines(): void {
+    const list = document.getElementById('custom-search-engines')
+    if (!list) return
+    list.replaceChildren()
+    for (const engine of configuredEngines(searchConfig).slice(3)) {
+        const row = document.createElement('div')
+        row.className = 'wrapper'
+        const name = document.createElement('span')
+        name.textContent = engine.name
+        const remove = document.createElement('button')
+        remove.type = 'button'
+        remove.className = 'param-btn input-btn btn-red'
+        remove.textContent = tradThis('Remove')
+        remove.setAttribute('aria-label', `${tradThis('Remove')} ${engine.name}`)
+        remove.addEventListener('click', () => searchbar(undefined, { removeEngine: engine.id }))
+        row.append(name, remove)
+        list.appendChild(row)
+    }
+}
 
 function isValidUrl(string: string): boolean {
     try {
@@ -179,64 +290,30 @@ function isValidUrl(string: string): boolean {
 }
 
 function createSearchUrl(val: string, engine: string): string {
-    const urls: Record<SearchEngines, string> = {
-        default: '',
-        google: 'https://www.google.com/search?q=%s',
-        ddg: 'https://duckduckgo.com/?q=%s',
-        startpage: 'https://www.startpage.com/do/search?query=%s',
-        qwant: 'https://www.qwant.com/?q=%s',
-        yahoo: 'https://search.yahoo.com/search?q=%s',
-        bing: 'https://www.bing.com/search?q=%s',
-        brave: 'https://search.brave.com/search?q=%s',
-        ecosia: 'https://www.ecosia.org/search?q=%s',
-        lilo: 'https://search.lilo.org/?q=%s',
-        baidu: 'https://www.baidu.com/s?wd=%s',
-        custom: domcontainer?.dataset.request || '',
-    }
-
-    if (!isValidEngine(engine)) {
-        return 'about:blank'
-    }
-
-    if (engine === 'custom' && !urls.custom) {
-        return 'about:blank'
-    }
-
-    let result = ''
-    const query = encodeURIComponent(val ?? '')
-    const localizedEngine = tradThis(engine)
-
-    result = localizedEngine.includes('%s') ? localizedEngine : urls[engine]
-    result = result.replace('%s', query)
-
-    return result
+    const selected = configuredEngines(searchConfig).find((item) => item.id === engine)
+    return (selected?.url ?? 'https://www.google.com/search?q=%s').replaceAll('%s', encodeURIComponent(val))
 }
 
-function submitSearch(e: Event): void {
+async function submitSearch(e: Event): Promise<void> {
     e.preventDefault()
 
-    const canUseDefault = !IS_MOBILE && (PLATFORM === 'chrome' || PLATFORM === 'firefox')
     const newtab = domcontainer?.dataset.newtab === 'true'
     const val = domsearchbar?.value
-    let engine = domcontainer?.dataset.engine ?? 'default'
+    const engine = domcontainer?.dataset.engine ?? 'google'
 
     if (!val) {
+        return
+    }
+
+    const selected = domsuggestions?.querySelector<HTMLElement>('li[aria-selected="true"]')
+    if (selected?.dataset.url) {
+        openLocalResult(selected.dataset.url)
         return
     }
 
     if (socket) {
         socket.close()
     }
-
-    if (canUseDefault && engine === 'default') {
-        ;(EXTENSION as typeof chrome)?.search.query({
-            disposition: newtab ? 'NEW_TAB' : 'CURRENT_TAB',
-            text: val,
-        })
-        return
-    }
-
-    engine = engine.replace('default', 'google')
 
     const hasProtocol = val.startsWith('http://') || val.startsWith('https://')
     const domainUrl = hasProtocol ? val : `https://${val}`
@@ -256,6 +333,12 @@ function submitSearch(e: Event): void {
 //
 
 function initSuggestions(): void {
+    if (suggestionsReady || !domsuggestions) return
+    suggestionsReady = true
+    domsearchbar?.setAttribute('role', 'combobox')
+    domsearchbar?.setAttribute('aria-autocomplete', 'list')
+    domsearchbar?.setAttribute('aria-controls', 'sb-suggestions')
+    domsuggestions.setAttribute('role', 'listbox')
     function selectShownResult(next: UndefinedElement): UndefinedElement {
         return next?.classList.contains('shown') ? next : null
     }
@@ -265,7 +348,9 @@ function initSuggestions(): void {
             return
         }
 
-        domsearchbar.value = elem?.querySelector('.suggest-result')?.textContent ?? ''
+        if (!(elem instanceof HTMLElement) || !elem.dataset.url) {
+            domsearchbar.value = elem?.querySelector('.suggest-result')?.textContent ?? ''
+        }
     }
 
     for (let ii = 0; ii < 10; ii++) {
@@ -276,6 +361,8 @@ function initSuggestions(): void {
         const description = document.createElement('p')
 
         li.setAttribute('tabindex', '0')
+        li.id = `sb-result-${ii}`
+        li.setAttribute('role', 'option')
         image.setAttribute('draggable', 'false')
         image.setAttribute('width', '16')
         image.setAttribute('height', '16')
@@ -298,6 +385,11 @@ function initSuggestions(): void {
         })
 
         li.addEventListener('click', (e) => {
+            e.preventDefault()
+            if (li.dataset.url) {
+                openLocalResult(li.dataset.url)
+                return
+            }
             applyResultContentToInput(li)
             submitSearch(e)
         })
@@ -326,10 +418,12 @@ function initSuggestions(): void {
         lastSelected?.removeAttribute('aria-selected')
 
         if (isEscape) {
+            hideResultsAndSuggestions()
             return
         }
 
         if (isArrowDown) {
+            e.preventDefault()
             lastSelected = selectShownResult(lastSelected?.nextElementSibling) ??
                 domsuggestions?.querySelector('li.shown')
             applyResultContentToInput(lastSelected)
@@ -342,11 +436,17 @@ function initSuggestions(): void {
         }
 
         if (isEnter && lastSelected) {
+            e.preventDefault()
+            if (lastSelected instanceof HTMLElement && lastSelected.dataset.url) {
+                openLocalResult(lastSelected.dataset.url)
+                return
+            }
             applyResultContentToInput(lastSelected)
             submitSearch(e)
         }
 
         lastSelected?.setAttribute('aria-selected', 'true')
+        if (lastSelected?.id) domsearchbar?.setAttribute('aria-activedescendant', lastSelected.id)
     }
 
     function hideResultsAndSuggestions(): void {
@@ -357,39 +457,86 @@ function initSuggestions(): void {
         domsuggestions?.classList.remove('shown')
     }
 
-    async function createSuggestionSocket(): Promise<void> {
-        socket = await apiWebSocket('suggestions')
-
-        socket?.addEventListener('message', (event: MessageEvent) => {
-            const data = parse<Suggestions | { error: string }>(event.data)
-
-            if (Array.isArray(data)) {
-                suggestions(data as Suggestions)
-            } else if (data?.error) {
-                createSuggestionSocket()
-            }
-        })
-    }
-
     domcontainer?.addEventListener('keydown', navigateSuggestions)
     domsearchbar?.addEventListener('focus', toggleSuggestions)
     domsearchbar?.addEventListener('blur', toggleSuggestions)
     emptyButton?.addEventListener('click', hideResultsAndSuggestions)
+}
 
-    createSuggestionSocket()
+function openLocalResult(url: string): void {
+    if (!/^https?:\/\//i.test(url)) return
+    if (domcontainer?.dataset.newtab === 'true') globalThis.open(url, '_blank', 'noopener')
+    else globalThis.open(url, '_self')
+}
+
+async function loadBookmarkIndex(): Promise<void> {
+    if (!EXTENSION || !await EXTENSION.permissions.contains({ permissions: ['bookmarks'] })) return
+    const tree = await EXTENSION.bookmarks.getTree()
+    const entries: typeof bookmarkIndex = []
+    type BookmarkNode = { title: string; url?: string; children?: BookmarkNode[] }
+    const walk = (nodes: BookmarkNode[]): void => {
+        for (const node of nodes) {
+            if (node.url && /^https?:\/\//i.test(node.url)) entries.push({ title: node.title, url: node.url })
+            if (node.children) walk(node.children)
+        }
+    }
+    walk(tree)
+    bookmarkIndex = entries
+}
+
+async function requestSuggestions(): Promise<void> {
+    if (domcontainer?.dataset.suggestions !== 'true' || !domsearchbar?.value) return
+    if (waitingForRemote) return
+    if (!socket || socket.readyState > WebSocket.OPEN) {
+        socketPromise ??= apiWebSocket('suggestions').then((connected) => {
+            socket = connected
+            socket?.addEventListener('message', (event: MessageEvent) => {
+                const data = parse<Suggestions>(event.data)
+                waitingForRemote = false
+                if (sentQuery === domsearchbar?.value) {
+                    remoteResults = Array.isArray(data)
+                        ? data.filter((item) => item && typeof item.text === 'string')
+                        : []
+                    suggestions(remoteResults)
+                } else {
+                    void requestSuggestions()
+                }
+            })
+            socket?.addEventListener('close', () => {
+                waitingForRemote = false
+            })
+        }).finally(() => {
+            socketPromise = undefined
+        })
+        await socketPromise
+    }
+    if (!socket || socket.readyState !== WebSocket.OPEN || !domsearchbar?.value) return
+    sentQuery = domsearchbar.value
+    waitingForRemote = true
+    const selected = domcontainer.dataset.engine ?? 'google'
+    const engine = ['google', 'bing', 'baidu'].includes(selected) ? selected : 'google'
+    socket.send(JSON.stringify({ q: encodeURIComponent(sentQuery), with: engine, lang: getLang() }))
 }
 
 function suggestions(results: Suggestions): void {
+    const seen = new Set(localResults.map((result) => result.url))
+    results = [...localResults, ...results.filter((result) => !result.url || !seen.has(result.url))].slice(0, 10)
     const input = domsearchbar as HTMLInputElement
     const liList = domsuggestions?.querySelectorAll('li') ?? []
 
-    domsuggestions?.classList.toggle('shown', results.length > 0)
+    const shown = results.length > 0 && document.getElementById('sb-engine-menu')?.hidden !== false
+    domsuggestions?.classList.toggle('shown', shown)
+    domsearchbar?.setAttribute('aria-expanded', String(shown))
+    domsearchbar?.removeAttribute('aria-activedescendant')
     domsuggestions?.querySelector('li[aria-selected="true"]')?.removeAttribute('aria-selected')
 
     liList.forEach((li, i) => {
         const result = results[i]
         const resultdom = li.querySelector('.suggest-result')
         const descdom = li.querySelector('.suggest-desc')
+        li.classList.toggle('shown', !!result)
+        if (result?.url) li.dataset.url = result.url
+        else delete li.dataset.url
 
         if (!(result && resultdom && descdom)) {
             return
@@ -411,8 +558,8 @@ function suggestions(results: Suggestions): void {
             const enddom = document.createElement('span')
 
             startdom.textContent = result.text.slice(0, queryIndex)
-            querydom.textContent = result.text.slice(queryIndex, input.value.length)
-            enddom.textContent = result.text.slice(input.value.length)
+            querydom.textContent = result.text.slice(queryIndex, queryIndex + input.value.length)
+            enddom.textContent = result.text.slice(queryIndex + input.value.length)
 
             resultdom.textContent = ''
             resultdom.appendChild(startdom)
@@ -446,8 +593,13 @@ function suggestions(results: Suggestions): void {
 //	Searchbar Events
 //
 
-function handleUserInput(e: Event): void {
-    const value = ((e as InputEvent).target as HTMLInputElement).value ?? ''
+async function handleUserInput(_e: Event): Promise<void> {
+    const value = domsearchbar?.value ?? ''
+    const revision = ++inputRevision
+    clearTimeout(remoteTimer)
+    remoteResults = []
+    localResults = []
+    initSuggestions()
     const hasProtocol = value.startsWith('http://') || value.startsWith('https://')
     const withProtocol = hasProtocol ? value : `https://${value}`
     const startsTypingProtocol = 'https://'.startsWith(value) || 'http://'.startsWith(value)
@@ -465,21 +617,26 @@ function handleUserInput(e: Event): void {
         return
     }
 
+    const data = await storage.sync.get()
+    if (revision !== inputRevision) return
+    const apps = searchLinks(data, value)
+    const words = value.trim().toLocaleLowerCase().split(/\s+/)
+    const seen = new Set(apps.map((result) => result.url))
+    const bookmarks = bookmarkIndex.filter((item) =>
+        !seen.has(item.url) &&
+        words.every((word) => `${item.title} ${item.url}`.toLocaleLowerCase().includes(word))
+    )
+        .slice(0, 3).map((item) => ({ text: item.title, url: item.url, desc: '书签' }))
+    localResults = [...apps, ...bookmarks].slice(0, 8)
+    suggestions([])
+
     if (startsTypingProtocol || isValidUrl(withProtocol)) {
-        domsuggestions?.classList.remove('shown')
         return
     }
 
-    if (domcontainer?.dataset.suggestions === 'true' && domsuggestions?.childElementCount === 0) {
-        initSuggestions()
-    }
-
-    // request suggestions
-    if (domcontainer?.dataset.suggestions === 'true' && socket && socket.readyState === socket.OPEN) {
-        const engine = (domcontainer?.dataset.engine ?? 'ddg').replace('custom', 'ddg').replace('default', 'google')
-        const query = encodeURIComponent(value ?? '')
-        socket.send(JSON.stringify({ q: query, with: engine, lang: getLang() }))
-    }
+    remoteTimer = setTimeout(() => {
+        void requestSuggestions()
+    }, 250)
 }
 
 function toggleInputButton(enabled: boolean): void {
@@ -492,6 +649,12 @@ function removeInputText(): void {
     if (domsearchbar) {
         domsearchbar.focus()
         domsearchbar.value = ''
+        inputRevision++
+        clearTimeout(remoteTimer)
+        localResults = []
+        remoteResults = []
+        domsearchbar.setAttribute('aria-expanded', 'false')
+        domsuggestions?.classList.remove('shown')
         toggleInputButton(false)
     }
 }
@@ -513,6 +676,6 @@ function searchbarShortcut(event: KeyboardEvent): void {
     }
 }
 
-function isValidEngine(str = ''): str is SearchEngines {
-    return SEARCHBAR_ENGINES.includes(str as SearchEngines)
+function isValidEngine(str = ''): boolean {
+    return configuredEngines(searchConfig).some((engine) => engine.id === str)
 }

@@ -8,6 +8,7 @@ let currentTrnsLang = 'en'
 
 export async function setTranslationCache(language: string, local?: Local): Promise<void> {
     const lang = countryCodeToLanguageCode(language)
+    currentTrnsLang = lang
 
     if (lang === 'en') {
         storage.local.remove('translations')
@@ -22,13 +23,15 @@ export async function setTranslationCache(language: string, local?: Local): Prom
         trns = local.translations
     } else {
         trns = await (await fetch(`../../_locales/${lang}/translations.json`)).json()
-        storage.local.set({ translations: trns })
+        await storage.local.set({ translations: trns })
     }
 
     currentTrnsLang = lang
 }
 
 export function traduction(scope: Element | null, lang = 'en'): void {
+    document.documentElement.setAttribute('lang', lang)
+    currentTrnsLang = lang
     if (lang === 'en') {
         return
     }
@@ -46,6 +49,7 @@ export function traduction(scope: Element | null, lang = 'en'): void {
 
     document.documentElement.setAttribute('lang', lang)
     currentTrnsLang = lang
+    document.documentElement.setAttribute('lang', lang)
 }
 
 export async function toggleTraduction(lang: string): Promise<void> {

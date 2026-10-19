@@ -1,6 +1,8 @@
 import { LOCAL_DEFAULT, PLATFORM, SYNC_DEFAULT } from './defaults.ts'
 import { deepEqual } from './dependencies/deepequal.ts'
 import { parse } from './utils/parse.ts'
+import { systemLanguage } from './utils/language.ts'
+import { configuredEngines } from './features/search-engine-config.ts'
 
 import type { Local } from '../types/local.ts'
 import type { Sync } from '../types/sync.ts'
@@ -15,7 +17,7 @@ interface AllStorage {
 interface StorageTypeReturn {
     init: () => StorageType
     get: () => StorageType
-    change: (type: 'sync' | 'local', data: Sync) => void
+    change: (type: 'sync' | 'local', data: Sync) => Promise<void>
 }
 
 interface Storage {
@@ -27,13 +29,13 @@ interface Storage {
     }
     local: {
         get: (key?: keyof Local | (keyof Local)[]) => Promise<Local>
-        set: (val: Partial<Local>) => void
+        set: (val: Partial<Local>) => Promise<void>
         remove: (key: keyof Local) => void
         clear: () => void
     }
     type: {
         get: () => StorageType
-        change: (type: 'sync' | 'local', data: Sync) => void
+        change: (type: 'sync' | 'local', data: Sync) => Promise<void>
         init: () => StorageType
     }
     init: () => Promise<AllStorage>
@@ -81,19 +83,20 @@ function storageTypeFn(): StorageTypeReturn {
         return type
     }
 
-    function change(type: 'sync' | 'local', data: Sync): void {
+    async function change(nextType: 'sync' | 'local', data: Sync): Promise<void> {
         if (globalThis.chrome?.storage === undefined) {
             return
         }
 
-        if (type === 'local') {
-            chrome.storage.local.set({ syncStorage: data })
+        if (nextType === 'local') {
+            await chrome.storage.local.set({ syncStorage: data })
+            type = 'webext-local'
         }
 
-        if (type === 'sync') {
-            chrome.storage.local.remove('syncStorage').then(() => {
-                chrome.storage.sync.set(data)
-            })
+        if (nextType === 'sync') {
+            await chrome.storage.sync.set(data)
+            await chrome.storage.local.remove('syncStorage')
+            type = 'webext-sync'
         }
     }
 
@@ -125,7 +128,8 @@ async function syncSet(keyval: Record<string, unknown>, fn = () => {}): Promise<
 
     switch (storage.type.get()) {
         case 'webext-sync': {
-            chrome.storage.sync.set(keyval, fn)
+            await chrome.storage.sync.set(keyval)
+            fn()
             return
         }
 
@@ -136,7 +140,8 @@ async function syncSet(keyval: Record<string, unknown>, fn = () => {}): Promise<
                 ...keyval,
             }
 
-            chrome.storage.local.set({ syncStorage: data }, fn)
+            await chrome.storage.local.set({ syncStorage: data })
+            fn()
             return
         }
 
@@ -211,13 +216,13 @@ async function syncClear(): Promise<void> {
 
 //	Local data
 
-function localSet(value: Record<string, unknown>): void {
+async function localSet(value: Record<string, unknown>): Promise<void> {
     // console.log('local set', JSON.stringify(value))
 
     switch (storage.type.get()) {
         case 'webext-sync':
         case 'webext-local': {
-            chrome.storage.local.set(value)
+            await chrome.storage.local.set(value)
             return
         }
 
@@ -247,7 +252,10 @@ async function localGet(keys?: string | string[]): Promise<Local> {
             const result: Record<string, unknown> = defaults as Record<string, unknown>
 
             if (keys === undefined) {
-                keys = Object.keys(LOCAL_DEFAULT)
+                keys = [
+                    ...Object.keys(LOCAL_DEFAULT),
+                    ...Object.keys(localStorage).filter((key) => key.startsWith('x-icon-')),
+                ]
             }
             if (typeof keys === 'string') {
                 keys = [keys]
@@ -458,9 +466,13 @@ export function isStorageDefault(data: Sync): boolean {
 }
 
 function verifyDataAsSync(data: Partial<Sync> = {}): Sync {
+    const searchbar = { ...SYNC_DEFAULT.searchbar, ...data.searchbar }
+    if (!configuredEngines(searchbar).some((engine) => engine.id === searchbar.engine)) searchbar.engine = 'google'
     return {
         ...SYNC_DEFAULT,
         ...data,
+        lang: data.languageMode === 'manual' ? data.lang ?? SYNC_DEFAULT.lang : systemLanguage(),
+        searchbar,
     }
 }
 

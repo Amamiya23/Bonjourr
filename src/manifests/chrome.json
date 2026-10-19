@@ -22,6 +22,7 @@
     "permissions": [
         "storage"
     ],
+    "optional_host_permissions": ["https://*/*", "http://*/*"],
     "optional_permissions": [
         "bookmarks",
         "topSites",

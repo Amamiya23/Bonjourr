@@ -6,7 +6,7 @@
     padding: 0;
     width: 100%;
     min-width: 15em;
-    max-width: var(--searchbar-width, 30em);
+    max-width: var(--searchbar-width, 44em);
     border-radius: 10px;
     box-shadow: rgb(0 0 0 / 0.24) 0px 3px 8px;
 }

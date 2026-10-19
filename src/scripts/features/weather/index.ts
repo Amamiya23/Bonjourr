@@ -33,7 +33,10 @@ let pollingInterval: ReturnType<typeof setTimeout>
 
 export function weather(init?: WeatherInit, update?: WeatherUpdate): void {
     if (update) {
-        weatherUpdate(update)
+        weatherUpdate(update).catch((error) => {
+            const status = document.getElementById('weather-status')
+            if (status) status.textContent = error instanceof Error ? error.message : '天气更新失败。'
+        })
         return
     }
 

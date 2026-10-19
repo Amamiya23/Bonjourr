@@ -32,6 +32,7 @@ import { filterData } from './compatibility/apply.ts'
 import { stringify } from './utils/stringify.ts'
 import { debounce } from './utils/debounce.ts'
 import { langList } from './langs.ts'
+import { systemLanguage } from './utils/language.ts'
 import { storage } from './storage.ts'
 import { parse } from './utils/parse.ts'
 
@@ -121,7 +122,6 @@ function settingsInitEvent(event: Event): void {
     initSupportersSettingsNotif(sync)
     initOptionsValues(sync, local)
     initOptionsEvents()
-    settingsFooter()
 
     // 3. Can be deferred
 
@@ -205,7 +205,7 @@ function initOptionsValues(data: Sync, local: Local): void {
     setInput('i_sbengine', data.searchbar?.engine || 'google')
     setInput('i_sbplaceholder', data.searchbar?.placeholder || '')
     setInput('i_sb-opacity', opacityFromHex(data.searchbar?.background ?? '#fff2'))
-    setInput('i_sbwidth', data.searchbar?.width ?? 30)
+    setInput('i_sbwidth', data.searchbar?.width ?? 44)
     setInput('i_sbrequest', data.searchbar?.request || '')
     setInput('i_qtfreq', data.quotes?.frequency || 'day')
     setInput('i_qttype', data.quotes?.type || 'classic')
@@ -296,6 +296,11 @@ function initOptionsValues(data: Sync, local: Local): void {
 
     // inserts languages in select
     const langInput = paramId('i_lang')
+    const systemOption = document.createElement('option')
+    systemOption.value = 'system'
+    systemOption.className = 'trn'
+    systemOption.textContent = tradThis('Follow system language')
+    langInput.appendChild(systemOption)
 
     for (const [code, title] of Object.entries(langList)) {
         const option = document.createElement('option')
@@ -305,7 +310,7 @@ function initOptionsValues(data: Sync, local: Local): void {
     }
 
     // must be init after children appening
-    setInput('i_lang', data.lang || 'en')
+    setInput('i_lang', data.languageMode === 'manual' ? data.lang : 'system')
 
     // Activate feature options
     toggleSettingsDropdown('analog_options', data.clock.analog && data.showall)
@@ -316,7 +321,6 @@ function initOptionsValues(data: Sync, local: Local): void {
     toggleSettingsDropdown('ampm_position', data.clock.ampmlabel && data.clock.ampm)
     toggleSettingsDropdown('worldclocks_options', data.clock.worldclocks)
     toggleSettingsDropdown('weather_provider', data.weather?.moreinfo === 'custom')
-    toggleSettingsDropdown('searchbar_request', data.searchbar?.engine === 'custom')
 
     // the events for these are in toggleWidgetInSettings()
     toggleSettingsDropdown('quicklinks_options', data.quicklinks)
@@ -430,7 +434,7 @@ function initOptionsEvents(): void {
     })
 
     paramId('i_lang').addEventListener('change', function (): void {
-        switchLangs(this.value as Langs)
+        switchLangs(this.value)
     })
 
     paramId('i_favicon').addEventListener('input', function (this: HTMLInputElement): void {
@@ -815,7 +819,6 @@ function initOptionsEvents(): void {
 
     onclickdown(paramId('i_sb'), (_, target) => {
         moveElements(undefined, { widget: ['searchbar', target.checked] })
-        getPermissions('search')
     })
 
     paramId('i_sbengine').addEventListener('change', function (this: HTMLInputElement): void {
@@ -1241,10 +1244,11 @@ function localiseSiteLinks(): void {
     }
 }
 
-async function switchLangs(nextLang: Langs): Promise<void> {
+async function switchLangs(language: string): Promise<void> {
+    const nextLang = language === 'system' ? systemLanguage() : language
     await toggleTraduction(nextLang)
 
-    storage.sync.set({ lang: nextLang })
+    await storage.sync.set({ lang: nextLang, languageMode: language === 'system' ? 'system' : 'manual' })
     storage.local.remove('quotesCache')
 
     document.documentElement.setAttribute('lang', nextLang)
@@ -1265,11 +1269,11 @@ async function switchLangs(nextLang: Langs): Promise<void> {
     tabTitle(data.tabtitle)
     notes(data.notes)
     customFont(undefined, { lang: true })
-    settingsFooter()
     translatePlaceholders()
     translateAriaLabels()
     supportersNotifications(undefined, { translate: true })
     setModeGlider()
+    document.dispatchEvent(new Event('language-updated'))
 }
 
 function showall(val: boolean, event: boolean): void {
@@ -1277,25 +1281,6 @@ function showall(val: boolean, event: boolean): void {
 
     if (event) {
         storage.sync.set({ showall: val })
-    }
-}
-
-function settingsFooter(): void {
-    const one = document.querySelector<HTMLAnchorElement>('#signature-one')
-    const two = document.querySelector<HTMLAnchorElement>('#signature-two')
-    const version = document.getElementById('version') as HTMLLinkElement
-    const rand = Math.random() > 0.5
-
-    if (one && two) {
-        one.href = rand ? 'https://victr.me/' : 'https://tahoe.be/'
-        two.href = rand ? 'https://tahoe.be/' : 'https://victr.me/'
-        one.textContent = rand ? 'Victor Azevedo' : 'Tahoe Beetschen'
-        two.textContent = rand ? 'Tahoe Beetschen' : 'Victor Azevedo'
-    }
-
-    if (version) {
-        version.textContent = SYNC_DEFAULT.about.version
-        version.href = `https://github.com/victrme/Bonjourr/releases/${SYNC_DEFAULT.about.version}`
     }
 }
 
