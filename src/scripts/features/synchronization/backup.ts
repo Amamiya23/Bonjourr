@@ -29,6 +29,7 @@ export interface BackupIcon {
     key: string
     type: string
     bytes: number
+    hash?: string
 }
 
 export interface BackupLocal {
@@ -48,7 +49,7 @@ export interface BackupLocal {
 
 export interface Backup {
     format: 'bonjourr-webdav'
-    version: 2
+    version: 2 | 3
     createdAt: string
     settings: Sync
     local: BackupLocal
@@ -57,6 +58,25 @@ export interface Backup {
 }
 
 export type BackupPayload = LegacyBackup | Backup
+
+// Compare saved content, excluding connection details and device-specific sync state.
+export async function webdavFingerprint(): Promise<string> {
+    const settings = portableSettings(await storage.sync.get())
+    const local = await storage.local.get()
+    const values = persistentLocal(local)
+    delete values.webdav
+    delete values.syncType
+    const icons = Object.fromEntries(Object.entries(local).filter(([key]) => key.startsWith('x-icon-')))
+    const sorted = (_key: string, value: unknown): unknown => {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0))
+        }
+        return value
+    }
+    const content = JSON.stringify({ settings, local: values, icons }, sorted)
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content))
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
 
 export const MAX_MANIFEST_BYTES = 10 * 1024 * 1024
 export const MAX_LEGACY_BYTES = 50 * 1024 * 1024
@@ -86,8 +106,8 @@ export function backupAssetName(asset: Pick<BackupAsset, 'id' | 'size'>): string
     return `bonjourr-asset-${asset.id}-${asset.size}`
 }
 
-export function backupIconName(icon: Pick<BackupIcon, 'key'>): string {
-    return `bonjourr-icon-${icon.key}`
+export function backupIconName(icon: Pick<BackupIcon, 'key' | 'hash'>): string {
+    return `bonjourr-icon-${icon.key}${icon.hash ? `-${icon.hash}` : ''}`
 }
 
 export async function createBackup(): Promise<Backup> {
@@ -96,7 +116,7 @@ export async function createBackup(): Promise<Backup> {
     const cache = await getCache('local-files')
     const backup: Backup = {
         format: 'bonjourr-webdav',
-        version: 2,
+        version: 3,
         createdAt: new Date().toISOString(),
         settings: portableSettings(settings),
         local: persistentLocal(local),
@@ -133,7 +153,9 @@ export async function createBackup(): Promise<Backup> {
         if (icon.blob.size > MAX_ICON_BYTES) {
             throw new Error(`自定义图标 ${key} 超过 ${formatBytes(MAX_ICON_BYTES)}。`)
         }
-        backup.icons.push({ key, type: icon.type, bytes: icon.blob.size })
+        const digest = await crypto.subtle.digest('SHA-256', await icon.blob.arrayBuffer())
+        const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+        backup.icons.push({ key, type: icon.type, bytes: icon.blob.size, hash })
     }
 
     if (new Blob([JSON.stringify(backup)]).size > MAX_MANIFEST_BYTES) {
@@ -159,6 +181,11 @@ export async function readBackupIcon(icon: BackupIcon): Promise<Blob> {
     if (!parsed) {
         throw new Error(`自定义图标 ${icon.key} 缺失。`)
     }
+    if (icon.hash) {
+        const digest = await crypto.subtle.digest('SHA-256', await parsed.blob.arrayBuffer())
+        const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+        if (hash !== icon.hash) throw new Error('本地图标已变化，请重新备份。')
+    }
     return parsed.blob
 }
 
@@ -183,7 +210,7 @@ export function parseBackup(text: string): BackupPayload {
         return parseLegacyBackup(value)
     }
 
-    if (value.version === 2) {
+    if (value.version === 2 || value.version === 3) {
         if (size > MAX_MANIFEST_BYTES) {
             throw new Error(`备份配置超过 ${formatBytes(MAX_MANIFEST_BYTES)}。`)
         }
@@ -208,12 +235,12 @@ export async function restoreBackup(backup: BackupPayload, icons?: Record<string
     const currentLocal = await storage.local.get()
     for (const key of Object.keys(currentLocal)) {
         if (key.startsWith('x-icon-') && !(key in icons)) {
-            storage.local.remove(key as keyof Local)
+            await storage.local.remove(key as keyof Local)
         }
     }
     for (const key of PERSISTENT_LOCAL_KEYS) {
         if (!(key in backup.local)) {
-            storage.local.remove(key)
+            await storage.local.remove(key)
         }
     }
 
@@ -337,6 +364,9 @@ function parseCurrentBackup(value: Record<string, unknown>): Backup {
         ) {
             throw new Error('备份包含无效的自定义图标。')
         }
+        if (icon.hash !== undefined && (typeof icon.hash !== 'string' || !/^[a-f0-9]{64}$/.test(icon.hash))) {
+            throw new Error('备份包含无效的自定义图标摘要。')
+        }
         if (icons.has(icon.key)) throw new Error('备份包含重复图标。')
         icons.add(icon.key)
     }
@@ -418,7 +448,7 @@ async function restoreLegacyBackup(backup: LegacyBackup): Promise<void> {
     const currentLocal = await storage.local.get()
     for (const key of Object.keys(currentLocal)) {
         if (key.startsWith('x-icon-') && !(key in backup.local.icons)) {
-            storage.local.remove(key as keyof Local)
+            await storage.local.remove(key as keyof Local)
         }
     }
 

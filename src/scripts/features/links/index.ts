@@ -291,6 +291,7 @@ function createFolder(
     li.id = link._id
     span.textContent = createTitle(link)
     li.setAttribute('aria-label', span.textContent || tradThis('Folder'))
+    li.title = span.textContent || tradThis('Folder')
     li.addEventListener('click', folderClick)
     li.addEventListener('auxclick', folderClick)
     li.addEventListener('keydown', folderClick)
@@ -379,6 +380,7 @@ function createElem(link: LinkElem, openInNewtab: boolean, style: Sync['linkstyl
     li.id = link._id
     anchor.href = stringMaxSize(link.url, 512)
     span.textContent = createTitle(link)
+    anchor.title = span.textContent || link.url
 
     if (style !== 'text') {
         initIconList.push([img, getIconFromLinkElem(link)])

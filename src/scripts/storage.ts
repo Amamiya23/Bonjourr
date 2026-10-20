@@ -45,19 +45,35 @@ interface Storage {
 export const storage: Storage = {
     sync: {
         get: syncGet,
-        set: syncSet,
-        remove: syncRemove,
+        set: async (value) => {
+            await syncSet(value)
+            notifyStorageChange('sync', Object.keys(value))
+        },
+        remove: async (key) => {
+            await syncRemove(key)
+            notifyStorageChange('sync', [key])
+        },
         clear: syncClear,
     },
     local: {
         get: localGet,
-        set: localSet,
-        remove: localRemove,
+        set: async (value) => {
+            await localSet(value)
+            notifyStorageChange('local', Object.keys(value))
+        },
+        remove: async (key) => {
+            await localRemove(key)
+            notifyStorageChange('local', [key])
+        },
         clear: localClear,
     },
     init: init,
     clearall: clearall,
     type: storageTypeFn(),
+}
+
+function notifyStorageChange(area: 'sync' | 'local', keys: string[]): void {
+    globalThis.dispatchEvent(new CustomEvent('bonjourr-storage-change', { detail: { area, keys } }))
 }
 
 //	Storage type

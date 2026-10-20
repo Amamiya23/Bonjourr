@@ -88,7 +88,7 @@ Deno.test({
         pointer(anchor, 'pointerdown', 130, 130)
         pointer(anchor, 'pointermove', 200, 200)
         pointer(anchor, 'pointerup', 200, 200)
-        const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+        const click = new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 })
         anchor.dispatchEvent(click)
         await flush()
         assertEquals(click.defaultPrevented, true)
@@ -181,6 +181,305 @@ for (const outside of [true, false]) {
             )
             assertEquals(group.classList.contains('in-folder'), !outside)
             assertEquals(document.querySelector('.in-drag'), null)
+        },
+    })
+}
+
+async function renderApps(): Promise<HTMLAnchorElement> {
+    await renderFolder()
+    const sync = await storage.sync.get()
+    delete sync.linksfolder
+    for (let i = 0; i < 3; i++) {
+        const link = sync[`links${String(i).padStart(6, '0')}`] as LinkElem
+        link.parent = 'default'
+    }
+    localStorage.bonjourr = JSON.stringify(sync)
+    for (const group of document.querySelectorAll('.link-group')) group.remove()
+    await quickLinks({ sync, local: structuredClone(LOCAL_DEFAULT) })
+    const group = document.querySelector('.link-group')!
+    setBounds(group, 100, 100, 300, 80)
+    setBounds(group.querySelector('.link-list')!, 100, 100, 300, 80)
+    for (const [i, item] of group.querySelectorAll('li').entries()) {
+        setBounds(item, 120 + i * 70, 120, 64, 64)
+    }
+    return document.querySelector<HTMLAnchorElement>('#links000000 a')!
+}
+
+function clickReachesLink(anchor: HTMLAnchorElement, detail = 1): boolean {
+    let reached = false
+    const listener = (event: MouseEvent): void => {
+        reached = !event.defaultPrevented
+        event.preventDefault()
+    }
+    anchor.addEventListener('click', listener)
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail }))
+    anchor.removeEventListener('click', listener)
+    return reached
+}
+
+async function renderMixedGrid(): Promise<HTMLAnchorElement> {
+    await renderFolder(9)
+    const sync = await storage.sync.get()
+    for (let i = 3; i < 9; i++) {
+        const link = sync[`links${String(i).padStart(6, '0')}`] as LinkElem
+        link.parent = 'default'
+        link.order = i - 2
+    }
+    localStorage.bonjourr = JSON.stringify(sync)
+    for (const group of document.querySelectorAll('.link-group')) group.remove()
+    await quickLinks({ sync, local: structuredClone(LOCAL_DEFAULT) })
+    const group = document.querySelector('.link-group')!
+    setBounds(group, 100, 100, 390, 290)
+    setBounds(group.querySelector('.link-list')!, 100, 100, 390, 290)
+    setBounds(document.getElementById('linksfolder')!, 100, 100, 190, 190)
+    for (let i = 3; i < 9; i++) {
+        const column = i < 7 ? 2 + (i - 3) % 2 : i - 7
+        const row = i < 7 ? Math.floor((i - 3) / 2) : 2
+        setBounds(
+            document.getElementById(`links${String(i).padStart(6, '0')}`)!,
+            100 + column * 100,
+            100 + row * 100,
+            90,
+            90,
+        )
+    }
+    return document.querySelector<HTMLAnchorElement>('#links000003 a')!
+}
+
+for (const releaseOnly of [false, true]) {
+    Deno.test({
+        name: `A desktop app moves to the blank end of the third row beside a large folder${
+            releaseOnly ? ' using release coordinates' : ''
+        }`,
+        sanitizeOps: false,
+        sanitizeResources: false,
+        fn: async () => {
+            const anchor = await renderMixedGrid()
+            pointer(anchor, 'pointerdown', 320, 120)
+            pointer(anchor, 'pointermove', 345, 120)
+            if (!releaseOnly) pointer(anchor, 'pointermove', 350, 330)
+            pointer(anchor, 'pointerup', 350, 330)
+            assertEquals(clickReachesLink(anchor), false)
+            await flush(260)
+            const data = await storage.sync.get()
+            assertEquals((data.links000003 as LinkElem).order, 6)
+            assertEquals((data.links000008 as LinkElem).order, 5)
+            assertEquals((data.links000003 as LinkElem).parent, 'default')
+            assertEquals((data.linksfolder as LinkFolder).order, 0)
+        },
+    })
+}
+
+Deno.test({
+    name: 'Dropping in the gap before the third row inserts the app before that row',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderMixedGrid()
+        pointer(anchor, 'pointerdown', 320, 120)
+        pointer(anchor, 'pointermove', 345, 120)
+        pointer(anchor, 'pointermove', 140, 295)
+        pointer(anchor, 'pointerup', 140, 295)
+        await flush(260)
+        const data = await storage.sync.get()
+        assertEquals((data.links000003 as LinkElem).order, 4)
+        assertEquals((data.links000007 as LinkElem).order, 5)
+    },
+})
+
+Deno.test({
+    name: 'Dropping outside the desktop does not append an app to its blank row',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderMixedGrid()
+        pointer(anchor, 'pointerdown', 320, 120)
+        pointer(anchor, 'pointermove', 345, 120)
+        pointer(anchor, 'pointermove', 650, 330)
+        pointer(anchor, 'pointerup', 650, 330)
+        await flush(260)
+        assertEquals(((await storage.sync.get()).links000003 as LinkElem).order, 1)
+    },
+})
+
+Deno.test({
+    name: 'Moving from a pending folder merge to blank desktop space cancels the merge',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderMixedGrid()
+        pointer(anchor, 'pointerdown', 320, 120)
+        pointer(anchor, 'pointermove', 345, 120)
+        pointer(anchor, 'pointermove', 180, 180)
+        pointer(anchor, 'pointermove', 180, 180)
+        await flush(140)
+        assertEquals(document.getElementById('linksfolder')!.classList.contains('drop-target'), true)
+        assertEquals(document.querySelector<HTMLElement>('.link-drop-preview')!.hidden, true)
+        pointer(anchor, 'pointermove', 350, 330)
+        assertEquals(document.querySelector('.drop-target'), null)
+        assertEquals(document.querySelector<HTMLElement>('.link-drop-preview')!.hidden, false)
+        pointer(anchor, 'pointerup', 350, 330)
+        await flush(260)
+        const data = await storage.sync.get()
+        assertEquals((data.links000003 as LinkElem).parent, 'default')
+        assertEquals((data.links000003 as LinkElem).order, 6)
+    },
+})
+
+Deno.test({
+    name: 'App drag feedback follows its sorted slot and clears after landing',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderApps()
+        pointer(anchor, 'pointerdown', 130, 130)
+        pointer(anchor, 'pointermove', 160, 130)
+        const preview = document.querySelector<HTMLElement>('.link-drop-preview')!
+        assertEquals(preview.getAttribute('aria-hidden'), 'true')
+        assertEquals(preview.style.width, '64px')
+        assertEquals(preview.style.height, '64px')
+        assertEquals(preview.style.transform, 'translate(20px, 20px)')
+        assertEquals(document.querySelector('.drag-layout [id]'), null)
+        assertEquals(document.querySelector<HTMLElement>('.drag-layout')!.inert, true)
+        pointer(anchor, 'pointermove', 220, 130)
+        pointer(anchor, 'pointermove', 247, 130)
+        assertEquals(preview.style.transform, 'translate(90px, 20px)')
+        pointer(anchor, 'pointerup', 247, 130)
+        assertEquals(preview.classList.contains('settling'), true)
+        assertEquals(document.querySelector('.drag-layout'), null)
+        await flush(260)
+        assertEquals(document.querySelector('.link-drop-preview'), null)
+        assertEquals(document.getElementById('links000000')!.classList.contains('drop-landed'), true)
+        await flush(280)
+        assertEquals(document.querySelector('.drop-landed'), null)
+    },
+})
+
+Deno.test({
+    name: 'A large folder preview uses its full measured grid span after reordering',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        await renderMixedGrid()
+        const folder = document.getElementById('linksfolder')!
+        pointer(folder, 'pointerdown', 110, 110)
+        pointer(folder, 'pointermove', 145, 110)
+        const preview = document.querySelector<HTMLElement>('.link-drop-preview')!
+        assertEquals(preview.classList.contains('large-folder-preview'), true)
+        assertEquals(preview.style.width, '190px')
+        const layout = document.querySelector('.drag-layout')!
+        setBounds(layout.querySelector('.link-list')!, 0, 0, 390, 290)
+        setBounds(layout.querySelector('.large-folder')!, 200, 100, 190, 190)
+        for (const [i, item] of layout.querySelectorAll('.link-elem').entries()) {
+            setBounds(item, (i % 4) * 100, Math.floor(i / 4) * 100, 90, 90)
+        }
+        pointer(folder, 'pointermove', 350, 330)
+        assertEquals(preview.style.width, '190px')
+        assertEquals(preview.style.height, '190px')
+        assertEquals(preview.style.transform, 'translate(200px, 100px)')
+        assertEquals(document.getElementById('links000003')!.style.transform, 'translate(0px, 0px)')
+        pointer(folder, 'pointerup', 350, 330)
+        await flush(260)
+        assertEquals(((await storage.sync.get()).linksfolder as LinkFolder).order, 6)
+        assertEquals(document.querySelector('.link-drop-preview'), null)
+        assertEquals(document.querySelector('.drag-layout'), null)
+    },
+})
+
+Deno.test({
+    name: 'Drag feedback hides outside the desktop and cancellation leaves no landing highlight',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderMixedGrid()
+        pointer(anchor, 'pointerdown', 320, 120)
+        pointer(anchor, 'pointermove', 345, 120)
+        pointer(anchor, 'pointermove', 650, 330)
+        const preview = document.querySelector<HTMLElement>('.link-drop-preview')!
+        assertEquals(preview.hidden, true)
+        pointer(anchor, 'pointercancel', 650, 330)
+        await flush(260)
+        assertEquals(document.querySelector('.link-drop-preview'), null)
+        assertEquals(document.querySelector('.drag-layout'), null)
+        assertEquals(document.querySelector('.drop-landed'), null)
+    },
+})
+
+Deno.test({
+    name: 'Dropping a desktop app suppresses its generated click and preserves the next deliberate click',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderApps()
+        pointer(anchor, 'pointerdown', 130, 130)
+        pointer(anchor, 'pointermove', 160, 130)
+        assertEquals(document.querySelector('.link-group')?.classList.contains('dragging'), true)
+        assertEquals(anchor.closest<HTMLElement>('li')?.style.width, '64px')
+        assertEquals(anchor.closest<HTMLElement>('li')?.style.height, '64px')
+        pointer(anchor, 'pointermove', 220, 130)
+        pointer(anchor, 'pointermove', 247, 130)
+        pointer(anchor, 'pointerup', 247, 130)
+        assertEquals(clickReachesLink(anchor), false)
+        await flush(260)
+        const data = await storage.sync.get()
+        assertEquals((data.links000000 as LinkElem).order, 1)
+        assertEquals((data.links000001 as LinkElem).order, 0)
+        const currentAnchor = document.querySelector<HTMLAnchorElement>('#links000000 a')!
+        assertEquals(currentAnchor.closest<HTMLElement>('li')?.style.width, '')
+        assertEquals(currentAnchor.closest<HTMLElement>('li')?.style.height, '')
+        pointer(currentAnchor, 'pointerdown', 160, 130)
+        pointer(currentAnchor, 'pointerup', 160, 130)
+        assertEquals(clickReachesLink(currentAnchor), true)
+    },
+})
+
+Deno.test({
+    name: 'A drag click retargeted to the destination app cannot activate that link',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderApps()
+        const destination = document.querySelector<HTMLAnchorElement>('#links000001 a')!
+        pointer(anchor, 'pointerdown', 130, 130)
+        pointer(anchor, 'pointermove', 160, 130)
+        pointer(anchor, 'pointerup', 160, 130)
+        assertEquals(clickReachesLink(destination), false)
+        await flush(260)
+    },
+})
+
+Deno.test({
+    name: 'Moving within the click deadzone still activates a desktop app',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderApps()
+        pointer(anchor, 'pointerdown', 130, 130)
+        pointer(anchor, 'pointermove', 135, 130)
+        pointer(anchor, 'pointerup', 135, 130)
+        assertEquals(document.querySelector('.in-drag'), null)
+        assertEquals(clickReachesLink(anchor), true)
+    },
+})
+
+for (const nextGesture of ['pointerdown', 'keydown']) {
+    Deno.test({
+        name: `A ${nextGesture} after a drag without a generated click clears its pending click guard`,
+        sanitizeOps: false,
+        sanitizeResources: false,
+        fn: async () => {
+            const anchor = await renderApps()
+            pointer(anchor, 'pointerdown', 130, 130)
+            pointer(anchor, 'pointermove', 160, 130)
+            pointer(anchor, 'pointerup', 160, 130)
+            await flush(260)
+            if (nextGesture === 'pointerdown') {
+                pointer(anchor, 'pointerdown', 130, 130)
+                pointer(anchor, 'pointerup', 130, 130)
+            } else {
+                anchor.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }))
+            }
+            assertEquals(clickReachesLink(anchor, nextGesture === 'keydown' ? 0 : 1), true)
         },
     })
 }

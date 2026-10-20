@@ -198,7 +198,8 @@
     /* will-change: transform; */
 }
 
-.link .link-icon, .link .link-index {
+.link .link-icon,
+.link .link-index {
     margin: auto;
     flex-shrink: 0;
     width: var(--icon-size);
@@ -252,7 +253,8 @@
     top: 3.5em;
 }
 
-.titles.small.layout-text-left, .titles.small.layout-text-right {
+.titles.small.layout-text-left,
+.titles.small.layout-text-right {
     text-align: center;
 }
 
@@ -692,6 +694,86 @@
 }
 
 /* Links drag and drop */
+
+.drag-layout {
+    position: fixed;
+    top: 0;
+    left: 0;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.link-drop-preview {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    box-sizing: border-box;
+    border: 2px dashed rgb(var(--accent-color) / 0.7);
+    border-radius: 1em;
+    background-color: rgb(var(--accent-color) / 0.08);
+    pointer-events: none;
+    transition: transform 0.16s var(--out-cubic), opacity 0.1s var(--out-cubic);
+}
+
+.link-drop-preview.large-folder-preview {
+    border-radius: 1.8em;
+}
+
+.link-drop-preview[hidden] {
+    display: none;
+}
+
+.link-drop-preview.settling {
+    border-style: solid;
+    animation: drop-outline-out 0.2s var(--out-cubic) forwards;
+}
+
+#linkblocks .dragging .link.on:not(.drop-source) .link-icon {
+    transform: scale(1.035);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
+}
+
+#linkblocks .link.drop-target .link-icon,
+#linkblocks .drop-target.link-group .link-list {
+    outline: 2px solid rgb(var(--accent-color) / 0.8);
+    outline-offset: 4px;
+}
+
+.drop-landed .link-icon::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 2px solid rgb(var(--accent-color) / 0.8);
+    border-radius: inherit;
+    pointer-events: none;
+    animation: drop-outline-out 0.26s var(--out-cubic) forwards;
+}
+
+@keyframes drop-outline-out {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .link-drop-preview {
+        transition: none;
+    }
+
+    .link-drop-preview.settling,
+    .drop-landed .link-icon::after {
+        animation: none;
+    }
+
+    #linkblocks .dragging .link.on:not(.drop-source) .link-icon {
+        transform: none;
+    }
+}
 
 .link.drop-target img,
 .link.drop-source .link-icon {

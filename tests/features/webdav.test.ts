@@ -3,6 +3,7 @@ import '../init.ts'
 import { SYNC_DEFAULT } from '../../src/scripts/defaults.ts'
 import {
     downloadWebdav,
+    hasStrongWebdavEtag,
     testWebdav,
     uploadWebdav,
     webdavDirectory,
@@ -179,4 +180,116 @@ Deno.test('Backups reject missing media and do not import local credentials', ()
         Error,
         '类型',
     )
+})
+
+function etagResponse(
+    etag = '&quot;dav-revision&quot;',
+    status = '200 OK',
+    href = '/dav/Bonjourr/bonjourr-latest.json',
+): Response {
+    return new Response(
+        `<d:multistatus xmlns:d="DAV:"><d:response><d:href>${href}</d:href><d:propstat><d:prop><d:getetag>${etag}</d:getetag></d:prop><d:status>HTTP/1.1 ${status}</d:status></d:propstat></d:response></d:multistatus>`,
+        { status: 207 },
+    )
+}
+
+Deno.test('WebDAV reads OpenList property ETags when proxy GET headers omit or use a different validator', async () => {
+    const original = globalThis.fetch
+    try {
+        for (const upstreamEtag of [undefined, 'W/"upstream"', '"upstream"']) {
+            const requests: string[] = []
+            globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+                requests.push(init?.method ?? 'GET')
+                if (init?.method === 'PROPFIND') {
+                    assertEquals(new Headers(init.headers).get('Depth'), '0')
+                    assertEquals(String(init.body).includes('getetag'), true)
+                    return Promise.resolve(etagResponse())
+                }
+                assertEquals(new Headers(init?.headers).has('If-Match'), false)
+                return Promise.resolve(Response.json(backup, { headers: upstreamEtag ? { ETag: upstreamEtag } : {} }))
+            }) as typeof fetch
+            const result = await downloadWebdav(config)
+            assertEquals(result.etag, '"dav-revision"')
+            assertEquals(result.backup.settings.tabtitle, backup.settings.tabtitle)
+            assertEquals(requests, ['GET', 'PROPFIND', 'GET', 'PROPFIND'])
+        }
+    } finally {
+        globalThis.fetch = original
+    }
+})
+
+Deno.test('WebDAV does not associate a changed property ETag with an older backup', async () => {
+    const original = globalThis.fetch
+    let properties = 0
+    globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+        if (init?.method === 'PROPFIND') return Promise.resolve(etagResponse(`&quot;revision-${++properties}&quot;`))
+        return Promise.resolve(Response.json(backup))
+    }) as typeof fetch
+    try {
+        await assertRejects(() => downloadWebdav(config), Error, '读取期间已变化')
+    } finally {
+        globalThis.fetch = original
+    }
+})
+
+Deno.test('WebDAV ignores property errors and validators belonging to other resources', async () => {
+    const original = globalThis.fetch
+    try {
+        for (
+            const response of [
+                etagResponse('&quot;missing&quot;', '404 Not Found'),
+                etagResponse('&quot;other&quot;', '200 OK', '/dav/Bonjourr/other.json'),
+                etagResponse('W/&quot;weak&quot;'),
+                new Response('', { status: 405 }),
+            ]
+        ) {
+            globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) =>
+                Promise.resolve(init?.method === 'PROPFIND' ? response : Response.json(backup))) as typeof fetch
+            assertEquals((await downloadWebdav(config)).etag, undefined)
+        }
+    } finally {
+        globalThis.fetch = original
+    }
+})
+
+Deno.test('WebDAV validates strong ETags and requires an explicit override for weak ones', async () => {
+    assertEquals(hasStrongWebdavEtag('"revision"'), true)
+    for (const value of [undefined, '', 'W/"revision"', 'revision', '"invalid\n"']) {
+        assertEquals(hasStrongWebdavEtag(value), false)
+    }
+    await assertRejects(() => uploadWebdav({ ...config, etag: 'W/"revision"' }, backup), Error, '弱 ETag')
+})
+
+Deno.test('WebDAV permits explicitly confirmed overwrites without ETags and verifies uploaded content', async () => {
+    const original = globalThis.fetch
+    let payload = ''
+    globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+        if (init?.method === 'PROPFIND') return Promise.resolve(collectionResponse())
+        if (init?.method === 'PUT') {
+            assertEquals(new Headers(init.headers).has('If-Match'), false)
+            assertEquals(new Headers(init.headers).has('If-None-Match'), false)
+            payload = String(init.body)
+            return Promise.resolve(new Response(null, { status: 204 }))
+        }
+        return Promise.resolve(new Response(payload))
+    }) as typeof fetch
+    try {
+        assertEquals(await uploadWebdav(config, structuredClone(backup), undefined, true), undefined)
+        assertEquals(payload.includes('bonjourr-webdav'), true)
+        globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+            if (init?.method === 'PROPFIND') return Promise.resolve(collectionResponse())
+            return Promise.resolve(
+                init?.method === 'PUT'
+                    ? new Response(null, { status: 204 })
+                    : Response.json({ ...backup, createdAt: 'other' }),
+            )
+        }) as typeof fetch
+        await assertRejects(
+            () => uploadWebdav(config, structuredClone(backup), undefined, true),
+            Error,
+            '上传后已被其他设备修改',
+        )
+    } finally {
+        globalThis.fetch = original
+    }
 })

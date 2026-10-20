@@ -7,7 +7,7 @@
 }
 
 #interface.compact .digital {
-    font-size: calc(var(--clock-size) * 4.8);
+    font-size: calc(var(--clock-size) * 3.2);
 }
 
 #interface.compact #main:not(.hidden) {
@@ -319,7 +319,7 @@ body.potato #app-page-form {
 /* Home-screen icons keep the same columns even when the last row is incomplete. */
 #linkblocks:is(.large, .medium, .small) {
     --column-gap: clamp(0.5em, 2vw, 1.5em);
-    --row-gap: 1.75em;
+    --row-gap: var(--column-gap);
     width: min(100%, calc(var(--links-columns, 6) * (var(--block-size) + var(--column-gap)) - var(--column-gap) + 2px));
 }
 
@@ -353,8 +353,15 @@ body.potato #app-page-form {
 #linkblocks:is(.large, .medium, .small) .link-group:not(.in-folder):not(.in-drag) .link-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--block-size)), 1fr));
+    grid-auto-rows: 1fr;
     justify-items: center;
     align-items: start;
+}
+
+/* Square grid cells keep a two-row folder's title on the second row's title baseline. */
+#linkblocks:is(.large, .medium, .small) .link-group:not(.in-folder):not(.in-drag) .link-list > .link {
+    width: 100%;
+    aspect-ratio: 1;
 }
 
 #linkblocks:is(.large, .medium, .small) .link {
@@ -410,6 +417,18 @@ body.potato #app-page-form {
     display: -webkit-box;
 }
 
+#linkblocks:is(.large, .medium, .small) .link-group:not(.in-folder) .link .link-elem-title {
+    display: none;
+    min-height: 1.3em;
+    max-height: 1.3em;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+#linkblocks.titles:is(.large, .medium, .small) .link-group:not(.in-folder) .link .link-elem-title:not(:empty) {
+    display: block;
+}
+
 #linkblocks:is(.large, .medium, .small) .link-folder .link-icon {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -461,6 +480,46 @@ body.potato #app-page-form {
 #link-mini .add-group {
     position: static;
     visibility: visible;
+}
+
+/* Keep page navigation in place when application pages have different heights. */
+#interface:has(#linkblocks.with-groups:not(.hidden)):not(.move-edit) {
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+}
+
+#interface:not(.move-edit) #linkblocks #link-mini {
+    position: fixed;
+    inset-inline: 0;
+    bottom: calc(2rem + env(safe-area-inset-bottom));
+    z-index: 3;
+    width: fit-content;
+    max-width: min(52em, calc(100% - 12rem));
+    margin-inline: auto;
+    padding: 0.5em;
+    box-sizing: border-box;
+}
+
+#interface:not(.move-edit) #link-mini > div {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: start;
+    overflow-x: auto;
+    padding: 0.5em;
+    scrollbar-width: thin;
+}
+
+#interface:not(.move-edit) #link-mini .link-title {
+    flex: none;
+}
+
+#interface:not(.move-edit) #linkblocks #link-mini.in-drag {
+    width: var(--drag-width);
+    height: var(--drag-height);
+}
+
+#interface.pushed #link-mini {
+    opacity: 0;
+    pointer-events: none;
 }
 
 #app-page-form:not(.hidden) {
@@ -548,7 +607,7 @@ aside .personal-form .wrapper {
     gap: 12px;
 }
 
-aside .personal-form .wrapper > input,
+aside .personal-form .wrapper > input:not(.switch),
 aside .personal-form .wrapper > select {
     flex: 0 1 155px;
     min-width: 0;
@@ -691,6 +750,15 @@ aside .personal-action-row .personal-actions {
     #interface.compact:not(.move-edit) {
         padding-top: 12vh;
         row-gap: 1.5em;
+    }
+
+    #interface:has(#linkblocks.with-groups:not(.hidden)):not(.move-edit) {
+        padding-bottom: calc(10rem + env(safe-area-inset-bottom));
+    }
+
+    #interface:not(.move-edit) #linkblocks #link-mini {
+        bottom: calc(5.5rem + env(safe-area-inset-bottom));
+        max-width: calc(100% - 2rem);
     }
 
     #sb-engine {

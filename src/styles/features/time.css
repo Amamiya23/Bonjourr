@@ -45,7 +45,7 @@
     margin: 0;
     margin-bottom: 0.1em;
     margin-inline-start: calc(var(--seconds-margin-offset) / 2);
-    font-size: calc(var(--clock-size) * 6);
+    font-size: calc(var(--clock-size) * 4);
     line-height: 1em;
     font-weight: 200;
     font-weight: var(--font-weight-clock);

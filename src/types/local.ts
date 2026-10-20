@@ -73,6 +73,9 @@ export interface WebdavConfig {
     password: string
     etag?: string
     lastSync?: string
+    autoSync?: boolean
+    fingerprint?: string
+    error?: string
 }
 
 /**

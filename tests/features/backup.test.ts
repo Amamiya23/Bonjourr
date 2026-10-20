@@ -2,7 +2,12 @@ import { assertEquals } from '@std/assert'
 import '../init.ts'
 import { SYNC_DEFAULT } from '../../src/scripts/defaults.ts'
 import { storage } from '../../src/scripts/storage.ts'
-import { createBackup, parseBackup, restoreBackup } from '../../src/scripts/features/synchronization/backup.ts'
+import {
+    backupIconName,
+    createBackup,
+    parseBackup,
+    restoreBackup,
+} from '../../src/scripts/features/synchronization/backup.ts'
 import { restoreWebdav, uploadWebdav } from '../../src/scripts/features/synchronization/webdav.ts'
 import type { Backup } from '../../src/scripts/features/synchronization/backup.ts'
 
@@ -58,10 +63,15 @@ Deno.test('Full backups keep every persistent value and reference media outside 
         )
 
         const backup = await createBackup()
-        assertEquals(backup.version, 2)
+        assertEquals(backup.version, 3)
         assertEquals(backup.assets.length, 2)
         assertEquals(backup.assets.some((asset) => 'data' in asset), false)
-        assertEquals(backup.icons, [{ key: 'x-icon-test', type: 'image/png', bytes: 5 }])
+        assertEquals(backup.icons, [{
+            key: 'x-icon-test',
+            type: 'image/png',
+            bytes: 5,
+            hash: '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+        }])
         assertEquals(backup.local.weatherApiKey, 'uapi-private-test')
         assertEquals(backup.local.webdav?.password, 'private-password')
         assertEquals(backup.local.backgroundCompressFiles, false)
@@ -70,7 +80,7 @@ Deno.test('Full backups keep every persistent value and reference media outside 
         const serialized = JSON.stringify(backup)
         assertEquals(serialized.includes('full-image'), false)
         assertEquals(serialized.includes('data:image'), false)
-        assertEquals(parseBackup(serialized).version, 2)
+        assertEquals(parseBackup(serialized).version, 3)
 
         await storage.sync.set({ tabtitle: 'changed' })
         await storage.local.set({ 'x-icon-old': 'data:image/png;base64,b2xk' })
@@ -216,7 +226,7 @@ Deno.test('WebDAV upload sends media files before the manifest', async () => {
             'PROPFIND /dav/',
             'PUT /dav/bonjourr-asset-test-full',
             'PUT /dav/bonjourr-asset-test-small',
-            'PUT /dav/bonjourr-icon-x-icon-test',
+            `PUT /dav/${backupIconName(backup.icons[0])}`,
             'PUT /dav/bonjourr-latest.json',
         ])
     } finally {

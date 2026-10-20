@@ -246,6 +246,82 @@ Deno.test({
 })
 
 Deno.test({
+    name: 'WebDAV backup without a validator waits for explicit confirmation before overwriting',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const originalFetch = globalThis.fetch
+        const originalConfirm = globalThis.confirm
+        const originalCaches = globalThis.caches
+        const form = document.querySelector<HTMLFormElement>('#webdav-form')!
+        const button = document.querySelector<HTMLButtonElement>('#webdav-upload')!
+        const status = document.getElementById('webdav-status')!
+        document.querySelector<HTMLInputElement>('#webdav-url')!.value = 'https://example.com/dav/'
+        document.querySelector<HTMLInputElement>('#webdav-directory')!.value = 'Bonjourr'
+        document.querySelector<HTMLInputElement>('#webdav-auto')!.checked = false
+        const remote = {
+            format: 'bonjourr-webdav',
+            version: 3,
+            createdAt: '2026-10-20T00:00:00.000Z',
+            settings: structuredClone(SYNC_DEFAULT),
+            local: { backgroundFiles: {}, backgroundUrls: {} },
+            assets: [],
+            icons: [],
+        }
+        let accept = false
+        let confirmations = 0
+        let payload = ''
+        const writes: Headers[] = []
+        try {
+            await storage.local.set({ backgroundFiles: {}, backgroundUrls: {} })
+            Object.defineProperty(globalThis, 'caches', {
+                configurable: true,
+                value: { open: () => Promise.resolve({}) } as unknown as CacheStorage,
+            })
+            globalThis.confirm = () => {
+                confirmations++
+                return accept
+            }
+            globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+                if (init?.method === 'PROPFIND') {
+                    return Promise.resolve(
+                        new Response(
+                            '<d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>',
+                            { status: 207 },
+                        ),
+                    )
+                }
+                if (init?.method === 'PUT') {
+                    writes.push(new Headers(init.headers))
+                    if (String(_url).endsWith('bonjourr-latest.json')) payload = String(init.body)
+                    return Promise.resolve(new Response(null, { status: 204 }))
+                }
+                return Promise.resolve(new Response(payload || JSON.stringify(remote)))
+            }) as typeof fetch
+            button.click()
+            await flush()
+            assertEquals(confirmations, 1)
+            assertEquals(writes.length, 0)
+            assertEquals(status.textContent, '已取消备份。')
+            assertEquals(form.getAttribute('aria-busy'), 'false')
+            accept = true
+            button.click()
+            await flush()
+            assertEquals(confirmations, 2)
+            assertEquals(writes.length > 0, true)
+            assertEquals(writes.some((headers) => headers.has('If-Match') || headers.has('If-None-Match')), false)
+            assertEquals(status.dataset.state, 'success')
+            assertEquals(status.textContent?.startsWith('备份完成'), true)
+            assertEquals(typeof (await storage.local.get('webdav')).webdav?.lastSync, 'string')
+        } finally {
+            globalThis.fetch = originalFetch
+            globalThis.confirm = originalConfirm
+            Object.defineProperty(globalThis, 'caches', { configurable: true, value: originalCaches })
+        }
+    },
+})
+
+Deno.test({
     name: 'General new-tab setting controls search and existing, added and recreated quick links',
     sanitizeOps: false,
     sanitizeResources: false,

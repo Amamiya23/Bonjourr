@@ -1,5 +1,6 @@
 import { fetchWithTimeout, httpUrl } from '../../shared/network.ts'
 import { getCache } from '../../shared/cache.ts'
+import { storage } from '../../storage.ts'
 import {
     backgroundCacheUrl,
     backupAssetName,
@@ -56,6 +57,22 @@ function headers(config: WebdavConfig): Headers {
     return result
 }
 
+export class WebdavError extends Error {
+    constructor(message: string, public status: number) {
+        super(message)
+    }
+}
+
+export function hasStrongWebdavEtag(etag?: string): boolean {
+    return typeof etag === 'string' && /^"[\x21\x23-\x7e\x80-\xff]*"$/.test(etag)
+}
+
+function davElements(root: Document | Element, name: string): Element[] {
+    return Array.from(root.getElementsByTagName('*')).filter((element) =>
+        element.namespaceURI === 'DAV:' && element.localName === name
+    )
+}
+
 function failure(response: Response): Error {
     const messages: Record<number, string> = {
         401: 'WebDAV 用户名或密码错误。',
@@ -68,7 +85,7 @@ function failure(response: Response): Error {
         429: 'WebDAV 请求过于频繁，请稍后重试。',
         507: 'WebDAV 存储空间不足。',
     }
-    return new Error(messages[response.status] ?? `WebDAV 请求失败（HTTP ${response.status}）。`)
+    return new WebdavError(messages[response.status] ?? `WebDAV 请求失败（HTTP ${response.status}）。`, response.status)
 }
 
 async function inspectDirectory(config: WebdavConfig, directory: URL): Promise<Response> {
@@ -85,10 +102,6 @@ async function inspectDirectory(config: WebdavConfig, directory: URL): Promise<R
 async function verifyDirectory(response: Response): Promise<void> {
     if (!response.ok) throw failure(response)
     const xml = new DOMParser().parseFromString(await response.text(), 'application/xml')
-    const davElements = (root: Document | Element, name: string): Element[] =>
-        Array.from(root.getElementsByTagName('*')).filter((element) =>
-            element.namespaceURI === 'DAV:' && element.localName === name
-        )
     const resourceTypes = davElements(xml, 'resourcetype')
     const collection = resourceTypes.some((type) => {
         if (!davElements(type, 'collection').length) return false
@@ -119,21 +132,81 @@ export async function testWebdav(config: WebdavConfig): Promise<void> {
     await verifyDirectory(await inspectDirectory(config, directory))
 }
 
-export async function downloadWebdav(
-    config: WebdavConfig,
-): Promise<{ backup: BackupPayload; etag?: string }> {
-    const response = await fetchWithTimeout(
+async function propertyEtag(config: WebdavConfig): Promise<string | undefined> {
+    const file = webdavFile(config)
+    const requestHeaders = headers(config)
+    requestHeaders.set('Depth', '0')
+    requestHeaders.set('Content-Type', 'application/xml; charset=utf-8')
+    const response = await fetchWithTimeout(file, {
+        method: 'PROPFIND',
+        headers: requestHeaders,
+        body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/></d:prop></d:propfind>',
+        cache: 'no-store',
+    })
+    if ([403, 405, 501].includes(response.status)) return undefined
+    if (!response.ok) throw failure(response)
+    const xml = new DOMParser().parseFromString(await response.text(), 'application/xml')
+    for (const resource of davElements(xml, 'response')) {
+        const href = davElements(resource, 'href')[0]?.textContent?.trim()
+        if (!href) continue
+        try {
+            const target = new URL(href, file)
+            if (target.origin !== file.origin || decodeURI(target.pathname) !== decodeURI(file.pathname)) continue
+        } catch {
+            continue
+        }
+        for (const propstat of davElements(resource, 'propstat')) {
+            const status = davElements(propstat, 'status')[0]?.textContent ?? ''
+            if (!/\s200(?:\s|$)/.test(status)) continue
+            const etag = davElements(propstat, 'getetag')[0]?.textContent?.trim()
+            if (hasStrongWebdavEtag(etag)) return etag
+        }
+    }
+}
+
+async function readManifest(config: WebdavConfig): Promise<{ response: Response; etag?: string }> {
+    let response = await fetchWithTimeout(
         webdavFile(config),
         { headers: headers(config), cache: 'no-store' },
         MAX_LEGACY_BYTES,
         60000,
     )
     if (!response.ok) throw failure(response)
-    return { backup: parseBackup(await response.text()), etag: response.headers.get('ETag') ?? undefined }
+    const etag = response.headers.get('ETag') ?? undefined
+    const property = await propertyEtag(config)
+    if (!property) return { response, etag }
+    if (property === etag) return { response, etag: property }
+    // Proxy servers can use different ETags for GET and PROPFIND. Bracket a fresh read with
+    // property checks instead of forwarding the proxy's validator to its storage backend.
+    await response.body?.cancel()
+    response = await fetchWithTimeout(
+        webdavFile(config),
+        { headers: headers(config), cache: 'no-store' },
+        MAX_LEGACY_BYTES,
+        60000,
+    )
+    if (!response.ok) throw failure(response)
+    if (await propertyEtag(config) !== property) {
+        await response.body?.cancel()
+        throw new WebdavError('远程备份在读取期间已变化，请重试。', 412)
+    }
+    return { response, etag: property }
 }
 
-export async function restoreWebdav(config: WebdavConfig, backup: BackupPayload): Promise<void> {
+export async function downloadWebdav(
+    config: WebdavConfig,
+): Promise<{ backup: BackupPayload; etag?: string }> {
+    const { response, etag } = await readManifest(config)
+    return { backup: parseBackup(await response.text()), etag }
+}
+
+export async function restoreWebdav(
+    config: WebdavConfig,
+    backup: BackupPayload,
+    beforeRestore: () => Promise<void> = () => Promise.resolve(),
+): Promise<void> {
     if (backup.version === 1) {
+        await beforeRestore()
         await restoreBackup(backup)
         return
     }
@@ -160,21 +233,46 @@ export async function restoreWebdav(config: WebdavConfig, backup: BackupPayload)
         icons[icon.key] = await blobToDataUrl(await response.blob(), icon.type)
     }
 
-    await restoreBackup(backup, icons)
+    await beforeRestore()
+    const { syncType } = await storage.local.get('syncType')
+    const local = { ...backup.local, webdav: config, syncType }
+    await restoreBackup({ ...backup, local }, icons)
 }
 
 export async function uploadWebdav(
     config: WebdavConfig,
     backup: Backup,
+    previous?: BackupPayload,
+    allowOverwrite = false,
 ): Promise<string | undefined> {
+    if (config.etag && !hasStrongWebdavEtag(config.etag) && !allowOverwrite) {
+        throw new Error('服务器仅提供弱 ETag，无法安全覆盖。')
+    }
+    backup.local.webdav = {
+        url: config.url,
+        directory: config.directory,
+        username: config.username,
+        password: config.password,
+    }
     await testWebdav(config)
 
     for (const asset of backup.assets) {
+        if (
+            previous && previous.version !== 1 &&
+            previous.assets.some((item) =>
+                item.id === asset.id && item.size === asset.size && item.type === asset.type &&
+                item.bytes === asset.bytes
+            )
+        ) continue
         const blob = await readBackupAsset(asset)
         await putWebdavFile(config, backupAssetName(asset), blob, asset.type, 600000)
     }
 
     for (const icon of backup.icons) {
+        if (
+            icon.hash && previous && previous.version !== 1 &&
+            previous.icons.some((item) => item.key === icon.key && item.hash === icon.hash)
+        ) continue
         const blob = await readBackupIcon(icon)
         await putWebdavFile(config, backupIconName(icon), blob, icon.type, 120000)
     }
@@ -186,10 +284,9 @@ export async function uploadWebdav(
 
     const requestHeaders = headers(config)
     requestHeaders.set('Content-Type', 'application/json; charset=utf-8')
-    if (config.etag?.startsWith('W/')) {
-        throw new Error('服务器仅提供弱 ETag，无法安全覆盖。')
+    if (!allowOverwrite) {
+        requestHeaders.set(config.etag ? 'If-Match' : 'If-None-Match', config.etag ?? '*')
     }
-    requestHeaders.set(config.etag ? 'If-Match' : 'If-None-Match', config.etag ?? '*')
 
     const response = await fetchWithTimeout(
         webdavFile(config),
@@ -202,7 +299,13 @@ export async function uploadWebdav(
         60000,
     )
     if (!response.ok) throw failure(response)
-    return response.headers.get('ETag') ?? undefined
+    const etag = response.headers.get('ETag') ?? undefined
+    if (hasStrongWebdavEtag(etag)) return etag
+    const saved = await readManifest(config)
+    if (await saved.response.text() !== payload) {
+        throw new WebdavError('备份上传后已被其他设备修改，请重新检查远程备份。', 412)
+    }
+    return saved.etag
 }
 
 async function fetchWebdavFile(

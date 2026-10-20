@@ -5,6 +5,7 @@ import { networkForm } from '../../shared/form.ts'
 import { fadeOut } from '../../shared/dom.ts'
 import { storage } from '../../storage.ts'
 import { webdavSettings } from './webdav-settings.ts'
+import { initWebdavAutoSync, scheduleWebdavSync } from './webdav-auto.ts'
 
 import type { Local, SyncType } from '../../../types/local.ts'
 
@@ -24,6 +25,7 @@ const urlsyncform = networkForm('f_urlsync')
 
 export function synchronization(init?: Local, update?: SyncUpdate): void {
     if (init) {
+        initWebdavAutoSync()
         webdavSettings(init)
         onSettingsLoad(() => {
             toggleSyncSettingsOption(init)
@@ -137,8 +139,9 @@ async function updateSyncOption(update: SyncUpdate): Promise<void> {
 
     if (isSyncType(update.type)) {
         local.syncType = update.type
-        storage.local.set({ syncType: local.syncType })
+        await storage.local.set({ syncType: local.syncType })
         await storage.type.change(update.type === 'browser' ? 'sync' : 'local', data)
+        scheduleWebdavSync(true)
 
         toggleSyncSettingsOption(local)
         handleStoragePersistence(update.type)

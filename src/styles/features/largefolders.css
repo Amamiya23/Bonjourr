@@ -1,7 +1,6 @@
 /* Two home-screen cells in each direction, with apps that launch in place. */
 #linkblocks:is(.large, .medium, .small) .link-group:not(.in-folder):not(.in-drag) .link-list:has(.large-folder) {
     grid-template-columns: repeat(auto-fill, minmax(min(42%, var(--block-size)), 1fr));
-    grid-auto-rows: minmax(calc(var(--icon-size) + 3em), auto);
 }
 
 #linkblocks:is(.large, .medium, .small) .link-folder.large-folder {
@@ -10,16 +9,19 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100%;
+    height: auto;
 }
 
 #linkblocks:is(.large, .medium, .small) .large-folder .link-icon {
-    flex: 1;
-    width: 100%;
+    flex: none;
+    /* Match the outer edges of the two neighboring app icons, including on narrower grids. */
+    width: calc((100% + var(--column-gap)) / 2 + var(--icon-size));
+    max-width: 100%;
     height: auto;
-    min-height: 12em;
-    margin: 0;
-    padding: 0.85em;
+    min-height: 0;
+    aspect-ratio: 1;
+    margin: 0 auto;
+    padding: 0.75em;
     gap: 0.5em;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-template-rows: repeat(3, minmax(0, 1fr));
@@ -29,6 +31,12 @@
 
 #linkblocks:is(.large, .medium, .small) .large-folder .link-icon:hover {
     transform: none;
+}
+
+/* Pressing an app should affect that app, rather than dimming the whole folder. */
+#linkblocks:is(.large, .medium, .small) .large-folder:active .link-icon {
+    backdrop-filter: blur(1em);
+    -webkit-backdrop-filter: blur(1em);
 }
 
 #linkblocks:is(.large, .medium, .small) .large-folder .folder-app,
@@ -46,7 +54,8 @@
     background: transparent;
     color: inherit;
     touch-action: none;
-    transition: background-color 0.15s;
+    cursor: pointer;
+    transition: background-color 0.15s, transform 0.15s var(--out-cubic);
 }
 
 #linkblocks:is(.large, .medium, .small) .large-folder .folder-app img {
@@ -56,16 +65,35 @@
     aspect-ratio: 1;
     padding: 0;
     border-radius: max(4px, calc(var(--link-outer-radius) * 0.7));
+    filter: none;
+    transition: transform 0.16s var(--out-cubic), filter 0.12s;
 }
 
-#linkblocks:is(.large, .medium, .small) .large-folder .folder-app:hover,
-#linkblocks:is(.large, .medium, .small) .large-folder .folder-more:hover {
-    background-color: rgb(var(--font-color) / 0.12);
+@media (hover: hover) and (pointer: fine) {
+    #linkblocks:is(.large, .medium, .small) .large-folder .folder-app:hover,
+    #linkblocks:is(.large, .medium, .small) .large-folder .folder-more:hover {
+        background-color: rgb(var(--font-color) / 0.08);
+    }
+
+    #linkblocks:is(.large, .medium, .small) .large-folder .folder-app:hover img {
+        transform: translateY(-1px) scale(1.05);
+    }
 }
 
 #linkblocks:is(.large, .medium, .small) .large-folder .folder-app:active,
 #linkblocks:is(.large, .medium, .small) .large-folder .folder-more:active {
-    background-color: rgb(var(--font-color) / 0.2);
+    background-color: rgb(var(--font-color) / 0.14);
+    transition-duration: 0.08s;
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-app:active img {
+    transform: scale(0.92);
+    filter: brightness(0.94);
+    transition-duration: 0.08s;
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-more:active {
+    transform: scale(0.94);
 }
 
 #linkblocks:is(.large, .medium, .small) .large-folder .folder-more {
@@ -112,7 +140,9 @@
     font-size: 1.5em;
 }
 
-#linkblocks .large-folder .folder-more:focus-visible {
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-app:focus-visible,
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-more:focus-visible {
+    background-color: rgb(var(--font-color) / 0.08);
     outline: 2px solid rgb(var(--accent-color));
     outline-offset: 2px;
 }
@@ -123,6 +153,11 @@
 
 #linkblocks .large-folder .folder-app.extracting {
     opacity: 0.3;
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-app.extracting img {
+    transform: none;
+    filter: none;
 }
 
 #linkblocks .large-folder.extracting-app .folder-app {
@@ -154,8 +189,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #linkblocks .large-folder .folder-app,
-    #linkblocks .large-folder .folder-more {
+    #linkblocks:is(.large, .medium, .small) .large-folder .folder-app,
+    #linkblocks:is(.large, .medium, .small) .large-folder .folder-app img,
+    #linkblocks:is(.large, .medium, .small) .large-folder .folder-more {
         transition: none;
+    }
+
+    #linkblocks:is(.large, .medium, .small) .large-folder .folder-app:is(:hover, :active) img,
+    #linkblocks:is(.large, .medium, .small) .large-folder .folder-more:active {
+        transform: none;
     }
 }
