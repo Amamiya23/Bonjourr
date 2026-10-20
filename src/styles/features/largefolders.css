@@ -1,0 +1,161 @@
+/* Two home-screen cells in each direction, with apps that launch in place. */
+#linkblocks:is(.large, .medium, .small) .link-group:not(.in-folder):not(.in-drag) .link-list:has(.large-folder) {
+    grid-template-columns: repeat(auto-fill, minmax(min(42%, var(--block-size)), 1fr));
+    grid-auto-rows: minmax(calc(var(--icon-size) + 3em), auto);
+}
+
+#linkblocks:is(.large, .medium, .small) .link-folder.large-folder {
+    grid-column: span 2;
+    grid-row: span 2;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .link-icon {
+    flex: 1;
+    width: 100%;
+    height: auto;
+    min-height: 12em;
+    margin: 0;
+    padding: 0.85em;
+    gap: 0.5em;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    border-radius: 1.8em;
+    transform: none;
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .link-icon:hover {
+    transform: none;
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-app,
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0.25em;
+    border-radius: 0.8em;
+    box-sizing: border-box;
+    background: transparent;
+    color: inherit;
+    touch-action: none;
+    transition: background-color 0.15s;
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-app img {
+    width: min(100%, 3em);
+    height: auto;
+    max-height: 100%;
+    aspect-ratio: 1;
+    padding: 0;
+    border-radius: max(4px, calc(var(--link-outer-radius) * 0.7));
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-app:hover,
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-more:hover {
+    background-color: rgb(var(--font-color) / 0.12);
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-app:active,
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-more:active {
+    background-color: rgb(var(--font-color) / 0.2);
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-more {
+    position: relative;
+    display: grid;
+    grid-column: 3;
+    grid-row: 3;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 3px;
+    padding: 0.5em;
+    background-color: rgb(var(--font-color) / 0.08);
+    cursor: pointer;
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-more img {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border-radius: 3px;
+    pointer-events: none;
+}
+
+#linkblocks .large-folder .folder-more::after {
+    content: attr(data-count);
+    position: absolute;
+    inset-inline-end: -0.2em;
+    bottom: -0.2em;
+    padding: 0.15em 0.4em;
+    border-radius: 1em;
+    color: var(--color-text);
+    background-color: rgb(var(--color-param));
+    font-size: 10px;
+    line-height: 1.2;
+}
+
+#linkblocks .large-folder .folder-more[data-count='']::after {
+    display: none;
+}
+
+#linkblocks:is(.large, .medium, .small) .large-folder .folder-more.empty {
+    display: flex;
+    font: inherit;
+    font-size: 1.5em;
+}
+
+#linkblocks .large-folder .folder-more:focus-visible {
+    outline: 2px solid rgb(var(--accent-color));
+    outline-offset: 2px;
+}
+
+#linkblocks.select-all .large-folder .link-icon > * {
+    pointer-events: none;
+}
+
+#linkblocks .large-folder .folder-app.extracting {
+    opacity: 0.3;
+}
+
+#linkblocks .large-folder.extracting-app .folder-app {
+    cursor: grabbing;
+}
+
+.folder-drag-preview {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    pointer-events: none;
+    border-radius: max(4px, calc(var(--link-outer-radius) * 0.7));
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+    overflow: hidden;
+}
+
+.folder-drag-preview img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+@media (max-width: 600px), (pointer: coarse) {
+    #linkblocks:is(.large, .medium, .small) .link-group:not(.in-folder):not(.in-drag) .link-list:has(.large-folder) {
+        grid-template-columns: repeat(auto-fill, minmax(min(42%, max(var(--block-size), 82px)), 1fr));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #linkblocks .large-folder .folder-app,
+    #linkblocks .large-folder .folder-more {
+        transition: none;
+    }
+}

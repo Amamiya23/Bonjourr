@@ -19,6 +19,18 @@ export async function folderClick(event: MouseEvent | KeyboardEvent, li?: HTMLLI
         li = getLiFromEvent(event)
     }
 
+    if (event.target instanceof Element && event.target.closest('.folder-app')) {
+        return
+    }
+
+    if (event instanceof KeyboardEvent && event.target !== li && !event.altKey) {
+        return
+    }
+
+    if (li?.closest('.dragging, .dropping')) {
+        return
+    }
+
     let rightClick = false
     let ctrlClick = false
     let middleClick = false

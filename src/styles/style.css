@@ -50,6 +50,7 @@
 @import './features/csseditor.css';
 @import './features/supporters.css';
 @import './features/personal.css';
+@import './features/largefolders.css';
 
 /* Optional design themes */
 @import './liquidglass.css';

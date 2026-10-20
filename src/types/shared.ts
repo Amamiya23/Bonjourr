@@ -95,6 +95,7 @@ export interface LinkFolder {
     folder: true
     order: number
     title: string
+    size?: 'small' | 'large'
 }
 
 export interface Quote {

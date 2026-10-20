@@ -138,6 +138,11 @@ export async function populateDialogWithEditLink(
 
         domtitle.value = link?.title ?? ''
 
+        if (link?.folder) {
+            const size = document.getElementById('e-folder-size') as HTMLSelectElement
+            size.value = link.size === 'large' ? 'large' : 'small'
+        }
+
         if (link && !link.folder) {
             domurl.value = link.url ?? ''
 
@@ -214,7 +219,7 @@ function toggleEditInputs(): string[] {
         } else if (target.title) {
             inputs = ['title', 'delete', 'unpin', 'apply']
         } else if (target.folder) {
-            inputs = ['title', 'delete', 'apply']
+            inputs = ['title', 'folder-size', 'delete', 'apply']
         } else if (target.link) {
             inputs = ['title', 'url*', 'icon', 'icon-url*', 'delete', 'refresh', 'apply']
         } else {
@@ -495,6 +500,9 @@ function applyLinkChanges(_origin: 'inputs' | 'button'): void {
     quickLinks(undefined, {
         updateLink: {
             id: id,
+            folderSize: editStates.target.folder
+                ? (document.getElementById('e-folder-size') as HTMLSelectElement).value === 'large' ? 'large' : 'small'
+                : undefined,
             title: document.querySelector<HTMLInputElement>('#e-title')?.value ?? '',
             url: document.querySelector<HTMLInputElement>('#e-url')?.value,
             icon: {

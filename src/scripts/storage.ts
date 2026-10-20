@@ -185,7 +185,10 @@ async function syncRemove(key: string): Promise<void> {
         }
 
         case 'localstorage': {
-            localStorage.removeItem(key)
+            const data: Partial<Sync> = parse<Sync>(localStorage.bonjourr) ?? {}
+            delete data[key]
+            localStorage.bonjourr = JSON.stringify(data)
+            globalThis.dispatchEvent(new Event('storage'))
             return
         }
 

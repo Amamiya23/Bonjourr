@@ -3,7 +3,7 @@ import { initBookmarkSync, syncBookmarks } from './bookmarks.ts'
 import { openContextMenu } from '../contextmenu.ts'
 import { storeIconFile } from './fileicons.ts'
 import { folderClick } from './folders.ts'
-import { startDrag } from './drag.ts'
+import { startDrag, startFolderAppDrag } from './drag.ts'
 import {
     createTitle,
     getDefaultIcon,
@@ -38,6 +38,7 @@ type UpdateLink = {
     title: string
     icon?: LinkIcon
     file?: File
+    folderSize?: LinkFolder['size']
 }
 
 type AddGroups = {
@@ -214,7 +215,7 @@ export function initblocks(sync: Sync, local?: Local): true {
 
             li = isElem(link)
                 ? createElem(link, sync.linknewtab, sync.linkstyle)
-                : createFolder(link, linksInFolders, sync.linkstyle)
+                : createFolder(link, linksInFolders, sync.linkstyle, sync.linknewtab)
 
             fragment.appendChild(li)
 
@@ -269,7 +270,12 @@ export function initblocks(sync: Sync, local?: Local): true {
     return true
 }
 
-function createFolder(link: LinkFolder, folderChildren: Link[], style: Sync['linkstyle']): HTMLLIElement {
+function createFolder(
+    link: LinkFolder,
+    folderChildren: Link[],
+    style: Sync['linkstyle'],
+    openInNewtab: boolean,
+): HTMLLIElement {
     const li = getHTMLTemplate<HTMLLIElement>('link-folder-template', 'li')
     const imgs = li.querySelectorAll('img')
     const span = li.querySelector('span')
@@ -284,8 +290,15 @@ function createFolder(link: LinkFolder, folderChildren: Link[], style: Sync['lin
 
     li.id = link._id
     span.textContent = createTitle(link)
-    li.addEventListener('mouseup', folderClick)
+    li.setAttribute('aria-label', span.textContent || tradThis('Folder'))
+    li.addEventListener('click', folderClick)
+    li.addEventListener('auxclick', folderClick)
     li.addEventListener('keydown', folderClick)
+
+    if (link.size === 'large' && !['text', 'inline'].includes(style)) {
+        createLargeFolder(li, linksInThisFolder, openInNewtab)
+        return li
+    }
 
     for (let i = 0; i < linksInThisFolder.length; i++) {
         const img = imgs[i]
@@ -298,6 +311,59 @@ function createFolder(link: LinkFolder, folderChildren: Link[], style: Sync['lin
     }
 
     return li
+}
+
+function createLargeFolder(li: HTMLLIElement, children: Link[], openInNewtab: boolean): void {
+    const panel = li.querySelector<HTMLDivElement>('.link-icon')!
+    li.classList.add('large-folder')
+    panel.replaceChildren()
+
+    for (const child of children.slice(0, 8)) {
+        if (!isElem(child)) continue
+
+        const anchor = document.createElement('a')
+        const img = document.createElement('img')
+        anchor.className = 'folder-app'
+        anchor.dataset.linkId = child._id
+        anchor.href = stringMaxSize(child.url, 512)
+        anchor.rel = 'noreferrer noopener'
+        anchor.draggable = false
+        anchor.title = createTitle(child) || child.url
+        anchor.setAttribute('aria-label', anchor.title)
+        if (openInNewtab) anchor.target = '_blank'
+        img.alt = ''
+        img.draggable = false
+        initIconList.push([img, getIconFromLinkElem(child)])
+        anchor.append(img)
+        anchor.addEventListener('pointerdown', startFolderAppDrag)
+        anchor.addEventListener('click', (event) => {
+            if (li.closest('.dragging, .dropping')) event.preventDefault()
+        })
+        panel.append(anchor)
+    }
+
+    const more = document.createElement('button')
+    more.type = 'button'
+    more.className = 'folder-more'
+    more.title = tradThis('Open folder')
+    more.setAttribute('aria-label', `${more.title}: ${li.getAttribute('aria-label')}`)
+    more.dataset.count = children.length > 8 ? `+${children.length - 8}` : ''
+
+    for (const child of children.slice(8, 12)) {
+        if (!isElem(child)) continue
+        const img = document.createElement('img')
+        img.alt = ''
+        img.draggable = false
+        initIconList.push([img, getIconFromLinkElem(child)])
+        more.append(img)
+    }
+
+    if (!more.children.length) {
+        more.textContent = '···'
+        more.classList.add('empty')
+    }
+
+    panel.append(more)
 }
 
 function createElem(link: LinkElem, openInNewtab: boolean, style: Sync['linkstyle']): HTMLLIElement {
@@ -577,6 +643,7 @@ function addLinkFolder(ids: string[], title?: string, group?: string): LinkFolde
         {
             _id: `links${randomString(6)}`,
             folder: true,
+            size: 'large',
             order: order,
             parent: group ?? '',
             title: linktitle,
@@ -584,12 +651,19 @@ function addLinkFolder(ids: string[], title?: string, group?: string): LinkFolde
     ]
 }
 
-function updateLink({ id, title, icon, url, file }: UpdateLink, data: Sync): Sync {
-    const titledom = document.querySelector<HTMLSpanElement>(`#${id} span`)
+function updateLink({ id, title, icon, url, file, folderSize }: UpdateLink, data: Sync): Sync {
+    const titledom = document.querySelector<HTMLSpanElement>(`#${id} .link-elem-title`)
     const icondom = document.querySelector<HTMLImageElement>(`#${id} img`)
     const urldom = document.querySelector<HTMLAnchorElement>(`#${id} a`)
 
     const link = data[id] as Link
+
+    if (link?.folder) {
+        link.title = stringMaxSize(title, 64)
+        if (folderSize) link.size = folderSize
+        initblocks(data)
+        return data
+    }
 
     if (titledom && title !== undefined) {
         link.title = stringMaxSize(title, 64)

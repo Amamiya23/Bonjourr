@@ -144,8 +144,9 @@ aside input[type='checkbox'] {
 aside .switch {
     position: relative;
     display: inline-block;
-    height: 26px;
-    width: 59px;
+    height: 31px;
+    width: 51px;
+    flex-shrink: 0;
     border-radius: 16px;
     background-color: #c6c4c7;
     -webkit-appearance: none;
@@ -162,15 +163,15 @@ aside .switch {
 aside .switch:after {
     content: '';
     position: absolute;
-    height: 22px;
-    width: 34px;
+    height: 27px;
+    width: 27px;
     border-radius: 100px;
     background-color: white;
     transition: background-color 0.15s, transform 0.15s;
 
     left: 2px;
     top: 50%;
-    margin-top: -11px;
+    margin-top: -13.5px;
 }
 
 aside .switch:checked {
@@ -178,7 +179,7 @@ aside .switch:checked {
 }
 
 aside .switch:checked:after {
-    transform: translateX(21px);
+    transform: translateX(20px);
 }
 
 @media only screen and (hover: hover) {
@@ -342,10 +343,10 @@ aside .color-button button {
     background-color: rgb(var(--input-color));
     border: 1px solid
         color-mix(
-            in srgb,
-            rgb(var(--input-color)) 85%,
-            black
-        );
+        in srgb,
+        rgb(var(--input-color)) 85%,
+        black
+    );
     direction: ltr;
 }
 

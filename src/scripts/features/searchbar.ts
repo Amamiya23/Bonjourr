@@ -63,8 +63,7 @@ const setEngine = (value = 'google') => {
 const setRequest = (value = '') => domcontainer?.setAttribute('data-request', stringMaxSize(value, 512))
 const setNewtab = (value = false) => domcontainer?.setAttribute('data-newtab', value.toString())
 const setSuggestions = (value = true) => domcontainer?.setAttribute('data-suggestions', value.toString())
-const setPlaceholder = (value = '') =>
-    domsearchbar?.setAttribute('placeholder', value || tradThis('Search apps, bookmarks or the web'))
+const setPlaceholder = (value = '') => domsearchbar?.setAttribute('placeholder', value)
 const setWidth = (value = 44) =>
     document.documentElement.style.setProperty('--searchbar-width', `${value.toString()}em`)
 const setBackground = (value = '#fff2') => {
