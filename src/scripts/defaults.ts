@@ -11,6 +11,7 @@ const mobileUA = 'Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini'
 export const CURRENT_VERSION = '22.3.0'
 
 export const API_DOMAIN = 'https://services.bonjourr.fr'
+export const APP_API_DOMAIN = 'https://bonjourr.telyra.top'
 
 export const ENVIRONNEMENT: 'PROD' | 'DEV' | 'TEST' = globalThis.ENV ?? 'TEST'
 
@@ -111,6 +112,12 @@ export const SYNC_DEFAULT: Sync = {
     linknewtab: false,
     linksrow: 8,
     linkiconradius: 1.1,
+    onlineIconSources: {
+        appStore: {
+            enabled: false,
+            storefronts: ['us', 'cn'],
+        },
+    },
     linkgroups: {
         on: true,
         selected: 'default',

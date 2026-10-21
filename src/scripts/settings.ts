@@ -329,6 +329,9 @@ function initOptionsValues(data: Sync, local: Local): void {
 
     setCheckbox('i_showall', data.showall)
     setCheckbox('i_settingshide', data.hide?.settingsicon ?? false)
+    setCheckbox('i_appstore_icons', data.onlineIconSources.appStore.enabled)
+    setCheckbox('i_appstore_us', data.onlineIconSources.appStore.storefronts.includes('us'))
+    setCheckbox('i_appstore_cn', data.onlineIconSources.appStore.storefronts.includes('cn'))
     setCheckbox('i_background-mute-videos', data.backgrounds.mute ?? true)
     setCheckbox('i_quicklinks', data.quicklinks)
     setCheckbox('i_linkgroups', data?.linkgroups?.on)
@@ -399,6 +402,7 @@ function initOptionsValues(data: Sync, local: Local): void {
 
     // the events for these are in toggleWidgetInSettings()
     toggleSettingsDropdown('quicklinks_options', data.quicklinks)
+    toggleSettingsDropdown('appstore_options', data.onlineIconSources.appStore.enabled)
     toggleSettingsDropdown('time_options', data.time)
     toggleSettingsDropdown('main_options', data.main)
     toggleSettingsDropdown('searchbar_options', data.searchbar?.on)
@@ -555,6 +559,14 @@ function initOptionsEvents(): void {
     onclickdown(paramId('i_quicklinks'), (_, target) => {
         moveElements(undefined, { widget: ['quicklinks', target.checked] })
     })
+
+    onclickdown(paramId('i_appstore_icons'), async (_, target) => {
+        toggleSettingsDropdown('appstore_options', target.checked)
+        await saveAppStoreSource(target.checked)
+    })
+
+    paramId('i_appstore_us').addEventListener('change', saveAppStoreStorefronts)
+    paramId('i_appstore_cn').addEventListener('change', saveAppStoreStorefronts)
 
     paramId('f_addlink').addEventListener('submit', function (this, event: SubmitEvent): void {
         event.preventDefault()
@@ -1345,7 +1357,8 @@ export function toggleSettingsDropdown(dropdownId: string, shown: boolean): void
     // makes inputs and selects non focusable when tabbing
     dropdown.querySelectorAll('input, select').forEach((el) => {
         if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) {
-            el.disabled = !shown
+            const owner = el.closest<HTMLElement>('.dropdown')
+            el.disabled = !shown || (owner !== dropdown && !owner?.classList.contains('shown'))
         }
     })
 }
@@ -1359,6 +1372,42 @@ function paramId(str: string): HTMLInputElement {
 function setCheckbox(id: string, cat: boolean): void {
     const checkbox = paramId(id) as HTMLInputElement
     checkbox.checked = cat
+}
+
+async function saveAppStoreSource(enabled: boolean): Promise<void> {
+    const data = await storage.sync.get()
+    data.onlineIconSources = {
+        ...data.onlineIconSources,
+        appStore: {
+            ...data.onlineIconSources.appStore,
+            enabled,
+        },
+    }
+    await storage.sync.set(data)
+}
+
+async function saveAppStoreStorefronts(event: Event): Promise<void> {
+    const target = event.target as HTMLInputElement
+    const us = paramId('i_appstore_us')
+    const cn = paramId('i_appstore_cn')
+    if (!us.checked && !cn.checked) {
+        target.checked = true
+        return
+    }
+
+    const storefronts: Sync['onlineIconSources']['appStore']['storefronts'] = []
+    if (us.checked) storefronts.push('us')
+    if (cn.checked) storefronts.push('cn')
+
+    const data = await storage.sync.get()
+    data.onlineIconSources = {
+        ...data.onlineIconSources,
+        appStore: {
+            ...data.onlineIconSources.appStore,
+            storefronts,
+        },
+    }
+    await storage.sync.set(data)
 }
 
 function setInput(id: string, val: string | number): void {

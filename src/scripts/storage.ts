@@ -489,6 +489,12 @@ export function isStorageDefault(data: Sync): boolean {
 function verifyDataAsSync(data: Partial<Sync> = {}): Sync {
     const openInNewTab = Boolean(data.linknewtab || data.searchbar?.newtab)
     const searchbar = { ...SYNC_DEFAULT.searchbar, ...data.searchbar, newtab: openInNewTab }
+    const appStore = { ...SYNC_DEFAULT.onlineIconSources.appStore, ...data.onlineIconSources?.appStore }
+    const storefronts = Array.isArray(appStore.storefronts)
+        ? appStore.storefronts.filter((storefront): storefront is 'us' | 'cn' =>
+            storefront === 'us' || storefront === 'cn'
+        )
+        : []
     if (!configuredEngines(searchbar).some((engine) => engine.id === searchbar.engine)) searchbar.engine = 'google'
     return {
         ...SYNC_DEFAULT,
@@ -496,6 +502,16 @@ function verifyDataAsSync(data: Partial<Sync> = {}): Sync {
         linknewtab: openInNewTab,
         lang: data.languageMode === 'manual' ? data.lang ?? SYNC_DEFAULT.lang : systemLanguage(),
         searchbar,
+        onlineIconSources: {
+            ...SYNC_DEFAULT.onlineIconSources,
+            ...data.onlineIconSources,
+            appStore: {
+                ...appStore,
+                storefronts: storefronts.length
+                    ? storefronts
+                    : [...SYNC_DEFAULT.onlineIconSources.appStore.storefronts],
+            },
+        },
     }
 }
 

@@ -2,6 +2,7 @@ import { getLink, getSelectedIds, isLinkIconType } from './helpers.ts'
 import { closeContextMenu, positionContextMenu } from '../contextmenu.ts'
 import { togglePinGroup } from './groups.ts'
 import { quickLinks } from './index.ts'
+import { initLogoSearch, prepareLogoSearch, setLogoSearchVisible } from './logo.ts'
 
 import { getComposedPath } from '../../shared/dom.ts'
 import { tradThis } from '../../utils/translations.ts'
@@ -54,6 +55,7 @@ export async function populateDialogWithEditLink(
     newLinkFromGlobal?: boolean,
 ): Promise<void> {
     domeditlink = domdialog
+    setLogoSearchVisible(false)
 
     const path = getComposedPath(event.target)
     const classNames = path.map((element) => element.className ?? '')
@@ -145,6 +147,7 @@ export async function populateDialogWithEditLink(
 
         if (link && !link.folder) {
             domurl.value = link.url ?? ''
+            prepareLogoSearch(link.title, link.url)
 
             const iconType = link.icon?.type ?? 'auto'
             const iconValue = link.icon?.value ?? ''
@@ -290,6 +293,7 @@ function toggleEditInputs(): string[] {
 queueMicrotask(() => {
     document.getElementById('editlink-form')?.addEventListener('submit', submitChanges)
     domicontype?.addEventListener('change', toggleIconType)
+    initLogoSearch()
 })
 
 /**
@@ -338,6 +342,7 @@ function toggleIconType(iconType: Event | string): void {
     document.getElementById('edit-icon-url')?.classList.toggle('on', iconType === 'url')
     document.getElementById('edit-icon-svg')?.classList.toggle('on', iconType === 'svg')
     document.getElementById('edit-icon-file')?.classList.toggle('on', iconType === 'file')
+    setLogoSearchVisible(iconType === 'auto' || iconType === 'url')
 }
 
 function submitChanges(event: SubmitEvent): void {

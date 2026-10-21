@@ -4,6 +4,7 @@ import { accountEnv } from './scope.ts'
 import { renameDevice } from './devices.ts'
 import { commitChanges, parseChanges, readState } from './database.ts'
 import { bodyJson, boundedBody, HttpError } from './http.ts'
+import { mediaCandidates } from './media.ts'
 import { backupCloud, backupSettings, restoreCloudBackup, startBackup } from './webdav.ts'
 
 export default {
@@ -55,6 +56,7 @@ async function route(request: Request, root: CloudflareEnv, ctx: ExecutionContex
     const path = url.pathname.slice(5)
     const method = request.method
     if (path === 'health' && method === 'GET') return Response.json({ service: 'bonjourr-cloud', version: 2 })
+    if (path === 'app/media/candidates' && method === 'POST') return await mediaCandidates(request, ctx)
     if (path === 'auth/config' && method === 'GET') return await authConfig(root)
     if (path === 'auth/register' && method === 'POST') return await register(request, root)
     if (path === 'auth/login' && method === 'POST') return await login(request, root)

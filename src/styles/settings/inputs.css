@@ -466,6 +466,39 @@ label.input-file input[type='file'].dragover ~ span {
     color: white;
 }
 
+aside .appstore-storefronts {
+    align-items: center;
+}
+
+aside .storefront-options {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+aside .storefront-options label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 31px;
+    padding-inline: 9px 10px;
+    border-radius: 9px;
+    color: var(--color-text);
+    background-color: var(--color-input);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+aside .storefront-options input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    padding: 0;
+    -webkit-appearance: auto;
+    appearance: auto;
+    accent-color: rgb(var(--accent-color));
+}
+
 aside form {
     width: 155px;
 }

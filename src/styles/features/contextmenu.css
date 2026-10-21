@@ -3,7 +3,7 @@ dialog#contextmenu {
     left: 0;
     top: 0;
     opacity: 0;
-    width: 240px;
+    width: 300px;
     padding: 6px;
     margin: 0;
     z-index: 4;
@@ -145,6 +145,145 @@ dialog#contextmenu button.on {
 
 dialog#contextmenu label.on {
     display: grid;
+}
+
+/* Logo search */
+
+dialog#contextmenu .logo-search {
+    display: none;
+    margin-top: 8px;
+    padding-inline: 8px;
+}
+
+dialog#contextmenu .logo-search.on {
+    display: block;
+}
+
+dialog#contextmenu .logo-search-heading {
+    margin-bottom: 6px;
+    padding-inline: 4px;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+dialog#contextmenu .logo-search-input {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 34px;
+    gap: 4px;
+}
+
+dialog#contextmenu .logo-search-input input {
+    min-width: 0;
+    background-color: var(--color-dialog-input-bg);
+}
+
+dialog#contextmenu .logo-search-input button {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    padding: 0;
+    background-color: var(--color-dialog-input-bg);
+}
+
+dialog#contextmenu .logo-search-input button:hover,
+dialog#contextmenu .logo-search-input button:focus-visible {
+    background-color: var(--color-focused);
+}
+
+dialog#contextmenu .logo-search-input img {
+    width: 16px;
+    height: 16px;
+    opacity: 0.82;
+}
+
+dialog#contextmenu .logo-search-status {
+    min-height: 1.4em;
+    margin: 6px 4px 0;
+    font-size: 12px;
+    line-height: 1.4;
+    opacity: 0.72;
+}
+
+dialog#contextmenu .logo-results {
+    display: grid;
+    gap: 10px;
+    max-height: min(320px, 48vh);
+    padding: 2px 2px 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+dialog#contextmenu .logo-group h3 {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0 0 5px;
+    padding: 3px 2px;
+    font-size: 11px;
+    font-weight: 500;
+    text-align: start;
+    opacity: 0.72;
+    background-color: var(--color-dialog);
+}
+
+dialog#contextmenu .logo-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+}
+
+dialog#contextmenu .logo-candidate {
+    display: grid;
+    grid-template-rows: 44px 2.4em;
+    justify-items: center;
+    width: 100%;
+    min-width: 0;
+    padding: 5px 4px 4px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background-color: var(--color-dialog-input-bg);
+}
+
+dialog#contextmenu .logo-candidate:hover,
+dialog#contextmenu .logo-candidate:focus-visible {
+    background-color: var(--color-focused);
+}
+
+dialog#contextmenu .logo-candidate.best {
+    border-color: rgb(var(--accent-color) / 0.55);
+}
+
+dialog#contextmenu .logo-candidate.selected {
+    border-color: rgb(var(--accent-color));
+    box-shadow: inset 0 0 0 1px rgb(var(--accent-color));
+}
+
+dialog#contextmenu .logo-candidate img {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+dialog#contextmenu .logo-candidate-name {
+    display: -webkit-box;
+    width: 100%;
+    max-width: 100%;
+    max-height: 2.4em;
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: center;
+    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+@media only screen and (max-width: 340px) {
+    dialog#contextmenu {
+        width: calc(100vw - 12px);
+    }
 }
 
 /* background actions */

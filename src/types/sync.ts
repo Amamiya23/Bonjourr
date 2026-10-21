@@ -1,4 +1,5 @@
 import type { BackgroundImage, BackgroundVideo, Frequency, Link, PomodoroMode, Widgets } from './shared.ts'
+import type { OnlineIconSources } from './media.ts'
 
 export interface Sync {
     compactLayout?: boolean
@@ -17,6 +18,7 @@ export interface Sync {
     linktitles: boolean
     linkbackgrounds: boolean
     linkgroups: LinkGroups
+    onlineIconSources: OnlineIconSources
     textShadow: number
     cssHeight?: number
     review: number

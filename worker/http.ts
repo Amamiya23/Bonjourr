@@ -38,9 +38,9 @@ export async function boundedBody(
     return result
 }
 
-export async function bodyJson(request: Request): Promise<Record<string, unknown>> {
+export async function bodyJson(request: Request, maximum = CLOUD_MAX_BODY): Promise<Record<string, unknown>> {
     try {
-        const result: unknown = JSON.parse(new TextDecoder().decode(await boundedBody(request)))
+        const result: unknown = JSON.parse(new TextDecoder().decode(await boundedBody(request, maximum)))
         if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error()
         return result as Record<string, unknown>
     } catch (error) {

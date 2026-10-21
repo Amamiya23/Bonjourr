@@ -89,6 +89,35 @@
                     />
                 </label>
 
+                <div id="edit-logo" class="logo-search">
+                    <div class="logo-search-heading">
+                        <span class="trn">Logo search</span>
+                    </div>
+
+                    <div class="logo-search-input">
+                        <input
+                            id="e-logo-query"
+                            type="search"
+                            name="e-logo-query"
+                            maxlength="96"
+                            autocomplete="off"
+                            placeholder="Netflix"
+                            aria-label="Logo search"
+                        />
+                        <button
+                            id="b_logo-search"
+                            type="button"
+                            aria-label="Search logos"
+                            title="Search logos"
+                        >
+                            <img src="src/assets/interface/magnifying-glass.svg" alt="" aria-hidden="true" />
+                        </button>
+                    </div>
+
+                    <p id="e-logo-status" class="logo-search-status" role="status" aria-live="polite"></p>
+                    <div id="e-logo-results" class="logo-results"></div>
+                </div>
+
                 <hr />
 
                 <!-- <button type="submit" class="trn" id="edit-inputs">Submit from inputs</button> -->
