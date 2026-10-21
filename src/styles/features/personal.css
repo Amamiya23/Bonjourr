@@ -323,22 +323,37 @@ body.potato #sb_container #sb-engine-menu {
 }
 
 /* Home-screen icons keep the same columns even when the last row is incomplete. */
-#linkblocks:is(.large, .medium, .small) {
-    --column-gap: clamp(0.5em, 2vw, 1.5em);
-    --row-gap: var(--column-gap);
-    width: min(100%, calc(var(--links-columns, 6) * (var(--block-size) + var(--column-gap)) - var(--column-gap) + 2px));
+#interface {
+    --links-grid-gap: clamp(0.5em, 2vw, 1.5em);
+    --links-grid-width: calc(
+        var(--links-columns, 8) * (var(--block-size, 6em) + var(--links-grid-gap)) - var(--links-grid-gap) + 2px
+    );
 }
 
+#interface.compact:not(.move-edit):has(> #linkblocks:is(.large, .medium, .small):not(.hidden)) > #sb_container {
+    min-width: min(100%, 15em);
+    max-width: calc(var(--links-grid-width) * var(--searchbar-scale, 1));
+}
+
+#linkblocks:is(.large, .medium, .small) {
+    --column-gap: var(--links-grid-gap);
+    --row-gap: var(--column-gap);
+    width: min(100%, var(--links-grid-width));
+}
+
+#interface:has(> #linkblocks.large),
 #linkblocks.large {
     --block-size: 7em;
     --icon-size: 4.8em;
 }
 
+#interface:has(> #linkblocks.medium),
 #linkblocks.medium {
     --block-size: 6em;
     --icon-size: 4em;
 }
 
+#interface:has(> #linkblocks.small),
 #linkblocks.small {
     --block-size: 5em;
     --icon-size: 3em;
@@ -732,6 +747,7 @@ aside .personal-action-row .personal-actions {
 
 /* These sections now have variable-length forms and custom engine lists. */
 #main_options.shown,
+#quicklinks_options.shown,
 #searchbar_options.shown,
 #settings-sync-options.shown,
 #webdav-sync.shown {

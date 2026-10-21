@@ -109,7 +109,7 @@ export const SYNC_DEFAULT: Sync = {
     linktitles: true,
     linkbackgrounds: true,
     linknewtab: false,
-    linksrow: 6,
+    linksrow: 8,
     linkiconradius: 1.1,
     linkgroups: {
         on: true,

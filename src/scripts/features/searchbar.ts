@@ -64,8 +64,10 @@ const setRequest = (value = '') => domcontainer?.setAttribute('data-request', st
 const setNewtab = (value = false) => domcontainer?.setAttribute('data-newtab', value.toString())
 const setSuggestions = (value = true) => domcontainer?.setAttribute('data-suggestions', value.toString())
 const setPlaceholder = (value = '') => domsearchbar?.setAttribute('placeholder', value)
-const setWidth = (value = 44) =>
+const setWidth = (value = 44) => {
     document.documentElement.style.setProperty('--searchbar-width', `${value.toString()}em`)
+    document.documentElement.style.setProperty('--searchbar-scale', String(value / 44))
+}
 const setBackground = (value = '#fff2') => {
     document.documentElement.style.setProperty('--searchbar-background', value)
     document

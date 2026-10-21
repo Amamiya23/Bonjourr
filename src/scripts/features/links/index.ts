@@ -440,7 +440,7 @@ function createIcons(local: Local): void {
 }
 
 function initRows(row: number, style: string): void {
-    domlinkblocks.style.setProperty('--links-columns', String(row))
+    document.getElementById('interface')?.style.setProperty('--links-columns', String(row))
 
     const sizes = {
         large: { width: 4.8, gap: 2.3 },
@@ -978,7 +978,7 @@ function setRadius(radius: string | number): void {
 
 function setRows(row: string): void {
     const style = [...domlinkblocks.classList].filter(isLinkStyle)[0] ?? 'large'
-    const val = Number.parseInt(row ?? '6')
+    const val = Number.parseInt(row ?? '8')
     initRows(val, style)
     eventDebounce({ linksrow: row })
 }
