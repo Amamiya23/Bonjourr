@@ -4,7 +4,7 @@
     display: none;
     top: 0;
     width: 100%;
-    padding: 20px 12px 12px;
+    padding: 12px 12px 8px;
     cursor: grab;
     z-index: 4;
     box-sizing: border-box;
@@ -12,11 +12,11 @@
 }
 
 #mobile-drag-zone div {
-    width: 50px;
-    height: 8px;
+    width: 36px;
+    height: 5px;
     margin: auto;
-    border-radius: 4px;
-    background-color: var(--color-focused);
+    border-radius: 3px;
+    background-color: color-mix(in srgb, var(--color-light-text) 52%, transparent);
     transition:
         width 0.15s cubic-bezier(0.215, 0.61, 0.355, 1),
         background-color 0.15s cubic-bezier(0.215, 0.61, 0.355, 1);
@@ -27,6 +27,6 @@
 }
 
 #mobile-drag-zone:active div {
-    width: 75px;
-    background-color: var(--color-border);
+    width: 44px;
+    background-color: var(--color-light-text);
 }

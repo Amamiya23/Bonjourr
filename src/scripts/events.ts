@@ -46,13 +46,6 @@ function keyboardUserActions(advanced: Advanced, event: KeyboardEvent): void {
         } //
         else if (open.folder) {
             document.dispatchEvent(new Event('close-folder'))
-        } //
-        else if (advanced.escKey && keyup) {
-            // condition to avoid conflicts with esc key on supporters modal
-            // likely to be improved
-            if (document.documentElement.dataset.supportersModal === undefined) {
-                document.dispatchEvent(new CustomEvent('toggle-settings'))
-            }
         }
 
         return

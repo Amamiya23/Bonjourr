@@ -37,6 +37,8 @@ import type { Local } from '../types/local.ts'
 
 let settingsInitSync: Sync
 let settingsInitLocal: Local
+let settingsOpenTrigger: HTMLElement | null = null
+let settingsKeyboardEventsReady = false
 
 export function settingsInit(sync: Sync, local: Local): void {
     const showsettings = document.getElementById('show-settings')
@@ -68,8 +70,7 @@ function settingsInitEvent(event: Event): void {
 
     const settingsAreHidden = settings?.classList.contains('hidden')
     const isLeftClick = (event as PointerEvent)?.button === 0
-    const isEscape = (event as KeyboardEvent)?.code === 'Escape'
-    const canOpenSettings = settingsAreHidden && (isEscape || isLeftClick)
+    const canOpenSettings = settingsAreHidden && isLeftClick
 
     if (!canOpenSettings) {
         return
@@ -79,6 +80,15 @@ function settingsInitEvent(event: Event): void {
 
     const local = settingsInitLocal
     const sync = settingsInitSync
+    const trigger = (event.target as HTMLElement | null)?.closest<HTMLElement>('button, [tabindex]')
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
+
+    settingsOpenTrigger = trigger ?? showsettings?.querySelector<HTMLElement>('button') ?? activeElement
+
+    if (!settingsKeyboardEventsReady) {
+        document.addEventListener('keydown', settingsKeyboardNavigation)
+        settingsKeyboardEventsReady = true
+    }
 
     settings?.removeAttribute('style')
     settings?.classList.remove('hidden')
@@ -91,6 +101,11 @@ function settingsInitEvent(event: Event): void {
         }) as EventListener,
     )
     document.getElementById('settings-close')?.addEventListener('click', () => {
+        document.dispatchEvent(new Event('toggle-settings'))
+    })
+    document.getElementById('settings-scrim')?.addEventListener('click', (clickEvent) => {
+        clickEvent.preventDefault()
+        document.querySelector<HTMLElement>('#show-settings button')?.focus({ preventScroll: true })
         document.dispatchEvent(new Event('toggle-settings'))
     })
 
@@ -136,7 +151,8 @@ function settingsToggle(event?: CustomEvent): void {
     const dominterface = document.getElementById('interface')
     const domsettings = document.getElementById('settings')
     const domedit = document.getElementById('editlink')
-    const isClosed = domsettings?.classList.contains('shown') === false
+    const isClosing = domsettings?.classList.contains('shown')
+    const isClosed = isClosing === false
 
     const scrollTo = event?.detail?.scrollTo ?? false
     const target = domsettings?.querySelector(scrollTo)
@@ -158,10 +174,98 @@ function settingsToggle(event?: CustomEvent): void {
     domedit?.classList.toggle('pushed', isClosed)
     dominterface?.classList.toggle('pushed', isClosed)
     domshowsettings?.classList.toggle('shown', isClosed)
+    domsettings?.setAttribute('aria-hidden', String(!isClosed))
+    document.body.classList.toggle('settings-open', isClosed)
+
+    if (domsettings instanceof HTMLElement) {
+        domsettings.inert = !isClosed
+    }
 
     domsettings?.style.removeProperty('transform')
     domsettings?.style.removeProperty('transition')
     document.dispatchEvent(new Event('close-edit'))
+
+    if (isClosed) {
+        requestAnimationFrame(() => domsettings?.focus({ preventScroll: true }))
+    } else {
+        const focusTarget = settingsOpenTrigger?.isConnected && settingsOpenTrigger !== document.body
+            ? settingsOpenTrigger
+            : domshowsettings?.querySelector<HTMLElement>('button')
+        const restoreFocus = (): void => focusTarget?.focus({ preventScroll: true })
+
+        requestAnimationFrame(restoreFocus)
+        setTimeout(restoreFocus, 200)
+    }
+}
+
+function settingsKeyboardNavigation(event: KeyboardEvent): void {
+    if (event.key !== 'Tab') return
+
+    const settings = document.getElementById('settings')
+
+    if (!settings?.classList.contains('shown')) return
+
+    const focusable = Array.from(
+        settings.querySelectorAll<HTMLElement>(
+            'a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])',
+        ),
+    ).filter((element) => {
+        const hidden = element.hasAttribute('disabled') || element.getAttribute('aria-hidden') === 'true'
+        return !hidden && element.tabIndex >= 0 && element.getClientRects().length > 0 &&
+            getComputedStyle(element).visibility !== 'hidden'
+    })
+
+    const active = document.activeElement
+
+    if (focusable.length === 0) {
+        event.preventDefault()
+        settings.focus()
+        return
+    }
+
+    const first = focusable[0]
+    const last = focusable.at(-1)
+
+    if (!first || !last) {
+        event.preventDefault()
+        settings.focus()
+        return
+    }
+
+    if (event.shiftKey && (active === first || active === settings || !settings.contains(active))) {
+        event.preventDefault()
+        last.focus()
+    } else if (!event.shiftKey && (active === last || active === settings || !settings.contains(active))) {
+        event.preventDefault()
+        first.focus()
+    }
+}
+
+function initSettingsSwitches(root: HTMLElement): void {
+    const switches = [
+        ...(root.matches('input.switch') ? [root as HTMLInputElement] : []),
+        ...root.querySelectorAll<HTMLInputElement>('input.switch'),
+    ]
+
+    for (const input of switches) {
+        if (input.dataset.settingsSwitch === 'true') continue
+
+        const syncSwitchState = (): void => input.setAttribute('aria-checked', String(input.checked))
+        const row = input.closest<HTMLElement>('.wrapper')
+
+        input.dataset.settingsSwitch = 'true'
+        input.setAttribute('role', 'switch')
+        row?.classList.add('switch-row')
+        row?.addEventListener('click', (event) => {
+            const target = event.target as HTMLElement
+
+            if (!input.disabled && !target.closest('button, a, input, select, textarea, label, summary')) {
+                input.click()
+            }
+        })
+        input.addEventListener('change', syncSwitchState)
+        syncSwitchState()
+    }
 }
 
 function initOptionsValues(data: Sync, local: Local): void {
@@ -372,6 +476,18 @@ function initOptionsValues(data: Sync, local: Local): void {
     }
 
     // supportersNotifications(data?.supporters);
+
+    initSettingsSwitches(domsettings)
+
+    const switchObserver = new MutationObserver((records) => {
+        for (const record of records) {
+            for (const node of record.addedNodes) {
+                if (node instanceof HTMLElement) initSettingsSwitches(node)
+            }
+        }
+    })
+
+    switchObserver.observe(domsettings, { childList: true, subtree: true })
 
     // required for the range input's track color separation to work in webkit browsers
     // yes, it blows.
@@ -906,7 +1022,7 @@ function initOptionsEvents(): void {
     // Other
 
     if (IS_MOBILE) {
-        const rangeInputs = document.querySelectorAll<HTMLInputElement>("input[type='range'")
+        const rangeInputs = document.querySelectorAll<HTMLInputElement>("input[type='range']")
 
         const reduceSettingsOpacity = (event: TouchEvent) => {
             document.getElementById('settings')?.classList.toggle('see-through', event.type === 'touchstart')
@@ -934,12 +1050,20 @@ function initOptionsEvents(): void {
     const tooltips = document.querySelectorAll<HTMLElement>('.tooltip')
 
     for (const tooltip of tooltips) {
+        tooltip.setAttribute('aria-expanded', 'false')
+
         onclickdown(tooltip, () => {
             const classes = [...tooltip.classList]
             const ttclass = classes.filter((cl) => cl.startsWith('tt'))[0]
             const tttext = document.querySelector(`.tooltiptext.${ttclass}`)
 
+            if (tttext) {
+                tttext.id ||= `tooltip-${ttclass}`
+                tooltip.setAttribute('aria-controls', tttext.id)
+            }
+
             tttext?.classList.toggle('shown')
+            tooltip.setAttribute('aria-expanded', String(Boolean(tttext?.classList.contains('shown'))))
         })
     }
 

@@ -583,7 +583,19 @@
             </button>
         </div>
 
-        <aside id="settings" class="init hidden" style="display: none">
+        <button id="settings-scrim" type="button" tabindex="-1" aria-label="关闭设置"></button>
+
+        <aside
+            id="settings"
+            class="init hidden"
+            style="display: none"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-title"
+            aria-hidden="true"
+            tabindex="-1"
+            inert
+        >
             <!-- settings -->
         </aside>
 

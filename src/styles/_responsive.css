@@ -82,18 +82,19 @@
     aside {
         top: 100dvh;
         right: auto;
-        left: 0%;
+        left: 0;
         bottom: -100dvh;
         height: 100dvh;
         width: 100%;
-        padding: 0 12px;
+        padding: 0 16px;
         font-size: 14px;
-        border-radius: 1em;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -16px 48px rgb(0 0 0 / 0.2);
     }
 
     .settings-header {
-        margin-inline: -12px;
-        padding-inline: 12px;
+        margin-inline: -16px;
+        padding-inline: 16px;
     }
 
     aside.shown {
@@ -109,7 +110,7 @@
     }
 
     .settings-title {
-        margin: 24px 8px 7px;
+        margin: 24px 16px 7px;
     }
 
     @supports not (min-height: 100dvh) {
@@ -236,23 +237,23 @@ label {
     }
 
     aside .settings-title {
-        margin: 24px 8px 7px;
+        margin: 24px 16px 7px;
     }
 
     aside .wrapper {
-        min-height: 46px;
+        min-height: 48px;
     }
 
     aside input:not(.range, .switch),
     aside .input-btn,
     aside form button,
     aside select {
-        min-height: 42px;
-        border-radius: 11px;
+        min-height: 44px;
+        border-radius: 10px;
     }
 
     aside .param-btn {
-        min-height: 42px;
+        min-height: 44px;
     }
 
     .cloud-account-avatar {

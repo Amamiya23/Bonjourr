@@ -4,36 +4,36 @@
 
 #supporters-notif {
     position: relative;
-    padding: 1.5em 1.8em;
-    margin-top: 18px;
-    border-radius: var(--border-radius);
+    padding: 16px 52px 16px 16px;
+    margin-top: 8px;
+    border-radius: 12px;
     background-color: rgb(var(--color-param));
     color: var(--color-text);
-    border: 1px solid #e3e3e3;
+    border: 0.5px solid color-mix(in srgb, var(--color-border) 34%, transparent);
     background-image:
         linear-gradient(
-            to left,
-            rgb(var(--color-param) / 0) 0%,
-            rgb(var(--color-param) / 0.9) 55%,
-            rgb(var(--color-param)) 100%
-        ),
+        to left,
+        rgb(var(--color-param) / 0) 0%,
+        rgb(var(--color-param) / 0.94) 58%,
+        rgb(var(--color-param)) 100%
+    ),
         var(--background);
-    background-size: 74%;
+    background-size: 42%;
     background-repeat: no-repeat;
     background-position: right center;
-    transition: box-shadow 0.15s, border 0.15s;
+    transition: background-color 0.15s, border-color 0.15s;
     cursor: pointer;
-    box-shadow: rgb(100 100 111 / 0.2) 0px 7px 29px 0px;
+    box-shadow: none;
 }
 
 html:dir(rtl) #supporters-notif {
     background-image:
         linear-gradient(
-            to right,
-            rgb(var(--color-param) / 0) 0%,
-            rgb(var(--color-param) / 0.9) 55%,
-            rgb(var(--color-param)) 100%
-        ),
+        to right,
+        rgb(var(--color-param) / 0) 0%,
+        rgb(var(--color-param) / 0.94) 58%,
+        rgb(var(--color-param)) 100%
+    ),
         var(--background);
     background-position: left center;
 }
@@ -44,38 +44,30 @@ html:dir(rtl) #supporters-notif {
 
 #supporters-notif:hover:not(:has(#supporters-notif-close:hover)),
 #supporters-notif:focus {
-    border: 1px solid color-mix(in srgb, rgb(var(--accent-color)) 85%, white);
-    box-shadow:
-        0 0 5px color-mix(in srgb, rgb(var(--accent-color)) 31%, transparent),
-        0 0 10px color-mix(in srgb, rgb(var(--accent-color)) 31%, transparent),
-        0 0 20px color-mix(in srgb, rgb(var(--accent-color)) 31%, transparent),
-        0 0 30px color-mix(in srgb, rgb(var(--accent-color)) 31%, transparent);
+    border-color: color-mix(in srgb, rgb(var(--accent-color)) 42%, var(--color-border));
+    box-shadow: none;
     outline: unset;
 }
 
 [data-theme='dark'] #supporters-notif:hover:not(:has(#supporters-notif-close:hover)),
 [data-theme='dark'] #supporters-notif:focus {
-    border: 1px solid color-mix(in srgb, rgb(var(--accent-color)) 85%, white);
-    box-shadow:
-        0 0 5px color-mix(in srgb, rgb(var(--accent-color)) 33%, transparent),
-        0 0 10px color-mix(in srgb, rgb(var(--accent-color)) 33%, transparent),
-        0 0 20px color-mix(in srgb, rgb(var(--accent-color)) 33%, transparent),
-        0 0 40px color-mix(in srgb, rgb(var(--accent-color)) 33%, transparent);
+    border-color: color-mix(in srgb, rgb(var(--accent-color)) 42%, var(--color-border));
+    box-shadow: none;
 }
 
 #supporters-notif-close {
     z-index: 2;
     cursor: pointer;
     border-radius: 100%;
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     position: absolute;
     /* box-shadow: rgb(43 43 49 / 0.3) 0px 5px 9px 0px; */
     backdrop-filter: blur(4em);
     -webkit-backdrop-filter: blur(4em);
     background-color: var(--color-dialog);
-    top: 20px;
-    right: 20px;
+    top: 12px;
+    right: 12px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -84,7 +76,7 @@ html:dir(rtl) #supporters-notif {
 
 html:dir(rtl) #supporters-notif-close {
     right: unset;
-    left: 20px;
+    left: 12px;
 }
 
 #supporters-notif-close:hover {
@@ -121,11 +113,11 @@ html:dir(rtl) #supporters-notif-close {
 }
 
 #supporters-notif #supporters-notif-button {
-    border-radius: 100px;
+    border-radius: 10px;
     background-color: rgb(var(--accent-color));
     color: white;
-    padding: 0.7em 0.9em;
-    margin-top: 1em;
+    padding: 8px 12px;
+    margin-top: 10px;
     transition: filter 0.05s;
 }
 
