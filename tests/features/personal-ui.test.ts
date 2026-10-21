@@ -74,9 +74,12 @@ Deno.test({
     fn: () => {
         const trigger = document.querySelector<HTMLButtonElement>('#sb-engine-toggle')!
         const menu = document.getElementById('sb-engine-menu')!
+        assertEquals(menu.parentElement?.id, 'sb_container')
         trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }))
         assertEquals(menu.hidden, false)
         assertEquals((document.activeElement as HTMLElement).dataset.engine, 'bing')
+        document.activeElement?.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+        assertEquals(menu.hidden, false)
         menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }))
         assertEquals((document.activeElement as HTMLElement).dataset.engine, 'google')
         menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }))
@@ -84,8 +87,20 @@ Deno.test({
         menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
         assertEquals(menu.hidden, true)
         assertEquals(document.activeElement, trigger)
+        let escapeBubbled = false
+        const onKeyUp = (): void => {
+            escapeBubbled = true
+        }
+        document.addEventListener('keyup', onKeyUp)
+        trigger.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', bubbles: true }))
+        document.removeEventListener('keyup', onKeyUp)
+        assertEquals(escapeBubbled, false)
         trigger.click()
         document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+        assertEquals(menu.hidden, true)
+        assertEquals(trigger.getAttribute('aria-expanded'), 'false')
+        trigger.click()
+        document.getElementById('searchbar')!.focus()
         assertEquals(menu.hidden, true)
         assertEquals(trigger.getAttribute('aria-expanded'), 'false')
     },

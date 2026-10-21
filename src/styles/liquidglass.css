@@ -137,7 +137,6 @@
 /* Dialogs, context menu and popups */
 
 :root[data-design='liquid-glass'] dialog,
-:root[data-design='liquid-glass'] #sb-engine-menu,
 :root[data-design='liquid-glass'] #app-page-form,
 :root[data-design='liquid-glass'] #popup_text,
 :root[data-design='liquid-glass'] #popup_buttons a {
@@ -147,6 +146,11 @@
     box-shadow: var(--glass-inner), var(--glass-shadow);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
+}
+
+:root[data-design='liquid-glass'] #sb-engine-menu {
+    border-color: var(--glass-border);
+    box-shadow: var(--glass-inner), var(--glass-shadow);
 }
 
 :root[data-design='liquid-glass'] .move-overlay {

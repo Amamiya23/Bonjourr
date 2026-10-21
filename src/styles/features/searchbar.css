@@ -17,7 +17,7 @@
 
 #sb_container.opaque #searchbar,
 #sb_container.opaque #sb-suggestions,
-#sb_container.opaque button {
+#sb_container.opaque #sb-buttons button {
     color: #333;
 }
 

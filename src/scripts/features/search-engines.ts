@@ -62,6 +62,7 @@ export function initEnginePicker(select: HTMLSelectElement): void {
     menu.hidden = true
     menu.setAttribute('role', 'menu')
     menu.setAttribute('aria-label', tradThis('Search engine'))
+    let closingWithEscape = false
     const close = (focus = false): void => {
         menu.hidden = true
         trigger.setAttribute('aria-expanded', 'false')
@@ -113,11 +114,18 @@ export function initEnginePicker(select: HTMLSelectElement): void {
             open(event.key === 'ArrowUp')
         }
     })
+    trigger.addEventListener('keyup', (event) => {
+        if (event.key === 'Escape' && closingWithEscape) {
+            closingWithEscape = false
+            event.stopPropagation()
+        }
+    })
     menu.addEventListener('keydown', (event) => {
         event.stopPropagation()
         if (event.key === 'Escape') {
             event.preventDefault()
             event.stopPropagation()
+            closingWithEscape = true
             close(true)
             return
         }
@@ -133,14 +141,19 @@ export function initEnginePicker(select: HTMLSelectElement): void {
             : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length
         buttons[next]?.focus()
     })
+    const containsTarget = (target: EventTarget | null): boolean =>
+        target instanceof Node && (picker.contains(target) || menu.contains(target))
     document.addEventListener('pointerdown', (event) => {
-        if (event.target instanceof Node && !picker.contains(event.target)) close()
+        if (!containsTarget(event.target)) close()
     })
-    picker.addEventListener('focusout', (event) => {
-        if (!(event.relatedTarget instanceof Node) || !picker.contains(event.relatedTarget)) close()
-    })
-    picker.append(trigger, menu)
-    select.after(picker)
+    const onFocusOut = (event: FocusEvent): void => {
+        if (!containsTarget(event.relatedTarget)) close()
+    }
+    picker.addEventListener('focusout', onFocusOut)
+    menu.addEventListener('focusout', onFocusOut)
+    picker.append(trigger)
+    select.after(picker) // Keep the menu outside the search wrapper's backdrop so it can blur the links behind it.
+    ;(select.closest('#sb_container') ?? picker).append(menu)
     select.hidden = true
     updateEnginePicker(select)
 }
