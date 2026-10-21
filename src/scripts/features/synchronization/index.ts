@@ -180,8 +180,6 @@ async function toggleSyncSettingsOption(local?: Local): Promise<void> {
     const gistToken = local?.gistToken
     const distantUrl = local?.distantUrl
     const type = local?.syncType
-    document.getElementById('cloud-sync')?.classList.toggle('shown', type === 'cloud')
-
     const iGistsync = document.querySelector<HTMLInputElement>('#i_gistsync')
     const iUrlsync = document.querySelector<HTMLInputElement>('#i_urlsync')
     const bGistdown = document.querySelector<HTMLInputElement>('#b_gistdown')

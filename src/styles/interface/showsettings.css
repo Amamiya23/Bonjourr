@@ -12,20 +12,30 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 4em;
-    width: 4em;
+    height: 3.35em;
+    width: 3.35em;
     padding: 0;
-    border-radius: 13px;
-    background-color: transparent;
-    backdrop-filter: blur(0);
-    -webkit-backdrop-filter: blur(0);
+    border: 1px solid rgb(255 255 255 / 0.16);
+    border-radius: 50%;
+    background-color: rgb(24 25 28 / 0.2);
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
     cursor: pointer;
-    transition: background-color 0.1s var(--out-cubic);
+    box-shadow: 0 5px 16px rgb(0 0 0 / 0.12);
+    transition: background-color 0.16s var(--out-cubic), transform 0.16s var(--out-cubic);
 }
 
 #show-settings svg {
-    width: 2.6em;
+    width: 2.15em;
     transition: transform 0.33s var(--out-cubic);
+}
+
+#show-settings button:hover {
+    background-color: rgb(24 25 28 / 0.3);
+}
+
+#show-settings button:active {
+    transform: scale(0.94);
 }
 
 #show-settings.he_hidden {
@@ -46,10 +56,10 @@
 }
 
 #show-settings.shown button {
-    background-color: rgb(170 170 170 / 0.4);
+    background-color: rgb(170 170 170 / 0.34);
     backdrop-filter: blur(1em);
     -webkit-backdrop-filter: blur(1em);
-    border: 1px solid rgb(255 255 255 / 0.075);
+    border-color: rgb(255 255 255 / 0.12);
 }
 
 #show-settings.shown button:hover {

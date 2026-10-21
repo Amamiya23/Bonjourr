@@ -26,27 +26,6 @@
     </head>
 
     <body class="init loading">
-        <div id="cloud-auth-gate" hidden>
-            <section class="account-login" aria-labelledby="account-heading">
-                <div class="account-brand">Bonjourr</div>
-                <h1 id="account-heading">登录</h1>
-                <form id="account-login-form">
-                    <label for="account-username">用户名</label>
-                    <input id="account-username" name="username" autocomplete="username" maxlength="32" required />
-                    <label for="account-password">密码</label>
-                    <input id="account-password" name="password" type="password" autocomplete="current-password"
-                        maxlength="128" required />
-                    <button id="account-submit" type="submit">登录</button>
-                    <p id="account-status" role="status" aria-live="polite"></p>
-                    <button id="account-mode" type="button" hidden>创建账号</button>
-                    <details>
-                        <summary>服务器</summary>
-                        <label for="account-server">云端地址</label>
-                        <input id="account-server" type="url" required />
-                    </details>
-                </form>
-            </section>
-        </div>
         <dialog id="contextmenu">
             <form id="editlink-form">
                 <label id="edit-title" autofocus>

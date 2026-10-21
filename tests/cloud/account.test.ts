@@ -116,22 +116,21 @@ Deno.test('A new browser downloads the account homepage immediately after login'
         assertEquals((await storage.local.get('cloud')).cloud?.baseline?.initialized, true)
     }))
 
-Deno.test('Expired sessions show the login gate and hide registration when it is disabled', () =>
+Deno.test('Expired sessions keep the homepage available and defer login to settings', () =>
     fixture(async () => {
         const html = await Deno.readTextFile(new URL('../../src/index.html', import.meta.url))
         document.body.innerHTML = new DOMParser().parseFromString(html, 'text/html').body.innerHTML
-        globalThis.fetch = (() =>
-            Promise.resolve(
-                Response.json({ registrationOpen: false, firstAccount: false, setupRequired: false }),
-            )) as typeof fetch
         assertEquals(
             await cloudAccountAccess(
-                { cloud: { ...account, expiresAt: 0 } } as Parameters<typeof cloudAccountAccess>[0],
+                { cloud: { ...account, expiresAt: 0 }, syncType: 'cloud' } as Parameters<
+                    typeof cloudAccountAccess
+                >[0],
             ),
-            false,
+            true,
         )
-        assertEquals(document.getElementById('cloud-auth-gate')!.hidden, false)
-        assertEquals(document.body.classList.contains('account-required'), true)
-        assertEquals(document.getElementById('account-mode')!.hidden, true)
-        assertEquals(document.querySelector<HTMLInputElement>('#account-password')!.value, '')
+        assertEquals(document.getElementById('cloud-auth-gate'), null)
+        assertEquals(document.body.classList.contains('account-required'), false)
+        const local = await storage.local.get(['cloud', 'syncType'])
+        assertEquals(local.syncType, 'off')
+        assertEquals(local.cloud?.error, '登录状态已过期，请在设置中重新登录。')
     }))

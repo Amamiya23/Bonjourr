@@ -90,6 +90,9 @@ function settingsInitEvent(event: Event): void {
             settingsToggle(e)
         }) as EventListener,
     )
+    document.getElementById('settings-close')?.addEventListener('click', () => {
+        document.dispatchEvent(new Event('toggle-settings'))
+    })
 
     // if init by touch, opens settings right away
     if ((event as PointerEvent).pointerType === 'touch') {

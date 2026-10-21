@@ -6,8 +6,8 @@ aside {
     right: -450px;
     height: 100vh;
     min-width: 333px;
-    width: 450px;
-    padding: 0 21px;
+    width: min(450px, 100vw);
+    padding: 0 18px;
     background-color: var(--color-settings);
     color: var(--color-text);
     font-size: 15px;
@@ -18,7 +18,7 @@ aside {
     overflow-x: hidden;
     touch-action: pan-y;
     box-sizing: border-box;
-    transition: transform 0.33s, background-color 0.33s;
+    transition: transform 0.36s var(--out-cubic), background-color 0.33s;
 }
 
 aside.hidden {
@@ -28,7 +28,62 @@ aside.hidden {
 aside.shown {
     -webkit-transform: translateX(-100%);
     transform: translateX(-100%);
-    box-shadow: 0px 1px 20px 1px rgb(0 0 0 / 0.15);
+    box-shadow: -16px 0 42px rgb(0 0 0 / 0.16);
+}
+
+.settings-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 58px;
+    margin: 0 -18px 8px;
+    padding: 10px 18px;
+    box-sizing: border-box;
+    background: color-mix(in srgb, var(--color-settings) 88%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 34%, transparent);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+
+.settings-header h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 650;
+    line-height: 1.2;
+}
+
+#settings-close {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 50%;
+    color: var(--color-light-text);
+    background-color: color-mix(in srgb, var(--color-input) 82%, transparent);
+    transition: background-color 0.16s, color 0.16s, transform 0.16s;
+}
+
+#settings-close svg {
+    width: 17px;
+    height: 17px;
+}
+
+#settings-close:hover {
+    color: var(--color-text);
+    background-color: var(--color-focused);
+}
+
+#settings-close:active {
+    transform: scale(0.94);
+}
+
+#settings-close:focus-visible {
+    outline: 2px solid rgb(var(--accent-color));
+    outline-offset: 2px;
 }
 
 aside.see-through {

@@ -1,8 +1,8 @@
 aside hr {
-    width: 100%;
-    margin: 10px 0;
+    width: calc(100% - 12px);
+    margin: 0 6px;
     border: none;
-    border-bottom: 1px solid var(--color-input);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 52%, transparent);
 }
 
 aside .param-textarea {
@@ -19,19 +19,20 @@ aside .param-textarea {
 }
 
 aside .param-btn {
-    height: 31px;
-    padding: 0 1em;
+    min-height: 34px;
+    padding: 0 14px;
     color: rgb(var(--accent-color));
     border: none;
-    border-radius: 1em;
+    border-radius: 999px;
+    font-weight: 550;
     white-space: nowrap;
-    background-color: rgb(var(--accent-color) / 0.15);
+    background-color: rgb(var(--accent-color) / 0.12);
     display: inline-flex;
     justify-content: center;
     align-items: center;
     gap: 5px;
     cursor: pointer;
-    transition: background-color 0.05s;
+    transition: background-color 0.16s, opacity 0.16s, transform 0.16s;
 }
 
 aside .param-btn img,
@@ -41,12 +42,31 @@ aside .param-btn span {
 }
 
 aside .param-btn:hover {
-    background-color: rgb(var(--accent-color) / 0.25);
+    background-color: rgb(var(--accent-color) / 0.2);
+}
+
+aside .param-btn:active {
+    transform: scale(0.97);
 }
 
 aside .param-btn:hover.btn-red {
     color: rgb(var(--danger-color));
-    background-color: rgb(var(--danger-color) / 0.25);
+    background-color: rgb(var(--danger-color) / 0.15);
+}
+
+aside .param-btn.btn-red {
+    color: rgb(var(--danger-color));
+    background-color: rgb(var(--danger-color) / 0.1);
+}
+
+aside .param-btn.btn-primary {
+    color: #fff;
+    background-color: rgb(var(--accent-color));
+}
+
+aside .param-btn.btn-primary:hover {
+    color: #fff;
+    background-color: color-mix(in srgb, rgb(var(--accent-color)), black 8%);
 }
 
 aside .param-btn:disabled {
@@ -102,7 +122,7 @@ aside .prism-code-editor {
 aside select,
 aside input,
 aside button {
-    border-radius: 12px;
+    border-radius: 10px;
     color: var(--color-text);
     -webkit-appearance: none;
     appearance: none;
@@ -110,10 +130,10 @@ aside button {
 
 aside input,
 aside select {
-    height: 31px;
+    height: 36px;
     max-width: 155px;
     width: 100%;
-    padding-inline: 13px;
+    padding-inline: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
     background-color: var(--color-input);
@@ -139,6 +159,13 @@ aside input[type='text']:focus-visible {
 aside input[type='checkbox'] {
     -webkit-tap-highlight-color: transparent;
     cursor: pointer;
+}
+
+aside input:not([type='checkbox'], [type='range'], [type='color'], [type='file']):focus-visible,
+aside select:focus-visible,
+aside button:focus-visible {
+    outline: 2px solid rgb(var(--accent-color) / 0.72);
+    outline-offset: 1px;
 }
 
 aside .switch {
@@ -215,12 +242,12 @@ aside input[type='range']:active {
 aside input[type='range']::-webkit-slider-thumb {
     -webkit-appearance: none;
     background: #fff;
-    height: 20px;
-    width: 30px;
-    border-radius: 50px;
+    height: 24px;
+    width: 24px;
+    border-radius: 50%;
     border: 0;
     box-shadow: 0px 1px 4px 2px rgb(20 20 20 / 0.17);
-    margin-top: calc(4px * 0.5 - 20px * 0.5);
+    margin-top: calc(4px * 0.5 - 24px * 0.5);
 }
 
 aside input[type='range']::-webkit-slider-runnable-track {
@@ -248,12 +275,12 @@ html:dir(rtl) aside input[type='range']::-webkit-slider-runnable-track {
 /* firefox */
 aside input[type='range']::-moz-range-thumb {
     background: #fff;
-    height: 20px;
-    width: 30px;
-    border-radius: 50px;
+    height: 24px;
+    width: 24px;
+    border-radius: 50%;
     border: 0;
     box-shadow: 0px 1px 4px 2px rgb(20 20 20 / 0.17);
-    margin-top: calc(4px * 0.5 - 20px * 0.5);
+    margin-top: calc(4px * 0.5 - 24px * 0.5);
 }
 
 aside input[type='range']::-moz-range-track {
@@ -462,9 +489,10 @@ aside form.valid.remove span::after {
 
 .param {
     margin-top: 12px;
-    padding: 10px 16px;
-    border-radius: var(--border-radius);
+    padding: 6px 10px;
+    border-radius: 16px;
     background-color: rgb(var(--color-param));
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.035), 0 8px 24px rgb(0 0 0 / 0.035);
 }
 
 .param + .param {
@@ -475,8 +503,8 @@ aside form.valid.remove span::after {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 31px;
-    padding: 4px; /* for tabbing outline */
+    min-height: 44px;
+    padding: 3px 4px; /* for tabbing outline */
 }
 
 .wrapper > span {

@@ -10,5 +10,5 @@ Bonjourr is a minimalist and customizable "new tab" browser extension.
 ## Testing scope
 
 - Keep validation proportional to the change. Run only the necessary tests for the affected behavior, using the smallest relevant test file or test filter.
-- Avoid full-project test suites by default. Run broader tests only when changes affect shared infrastructure or multiple features, or when a failure indicates a wider impact. State the reason before broadening validation.
+- Do not run the full test suite unless it is necessary. Run broader tests only when changes affect shared infrastructure or multiple features, or when a failure indicates a wider impact. State the reason before broadening validation.
 - Do not add tests for simple, reversible style, copy, or configuration changes unless they address a concrete regression risk. Once relevant checks pass, do not repeat or expand them unless further changes or unresolved failures justify it.

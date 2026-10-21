@@ -392,9 +392,25 @@ function updateConnected(connection?: CloudConnection): void {
     const connected = !!connection?.accountId && !!connection.token && !!connection.expiresAt &&
         connection.expiresAt > Date.now()
     const info = document.getElementById('cloud-connection-info')
+    const name = document.getElementById('cloud-account-name')
+    const description = document.getElementById('cloud-account-description')
+    const state = document.getElementById('cloud-account-state')
     if (info) {
-        info.textContent = connected ? `${connection.username}${connection.admin ? ' · 管理员' : ''}` : ''
         info.title = connection ? new URL(connection.url).host : ''
+        info.classList.toggle('is-connected', connected)
+    }
+    if (name) {
+        name.textContent = connected ? `${connection.username}${connection.admin ? ' · 管理员' : ''}` : 'Bonjourr 云端'
+    }
+    if (description) {
+        description.textContent = connected
+            ? connection.lastSync
+                ? `上次同步 ${new Date(connection.lastSync).toLocaleString()}`
+                : '已连接，等待首次同步'
+            : '登录后跨设备同步设置与快捷链接'
+    }
+    if (state) {
+        state.textContent = connected ? '已连接' : '未登录'
     }
     document.querySelectorAll<HTMLElement>('[data-cloud-connected]').forEach((element) => {
         element.hidden = !connected

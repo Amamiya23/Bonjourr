@@ -119,79 +119,16 @@ export async function cloudAccountAccess(local: Local): Promise<boolean> {
             }
         }
     }
-    const gate = document.getElementById('cloud-auth-gate')
-    const form = document.querySelector<HTMLFormElement>('#account-login-form')
-    if (!gate || !form) return false
-    gate.hidden = false
-    document.body.classList.add('account-required')
-    document.body.classList.remove('init', 'loading')
-    const server = document.querySelector<HTMLInputElement>('#account-server')!
-    const username = document.querySelector<HTMLInputElement>('#account-username')!
-    const password = document.querySelector<HTMLInputElement>('#account-password')!
-    const submit = document.querySelector<HTMLButtonElement>('#account-submit')!
-    const toggle = document.querySelector<HTMLButtonElement>('#account-mode')!
-    const status = document.getElementById('account-status')!
-    server.value = saved?.url ?? defaultAccountServer()
-    username.value = saved?.username ?? ''
-    let registering = false
-    let working = false
-    let config: AccountConfig | undefined
-    const showMode = (): void => {
-        document.getElementById('account-heading')!.textContent = registering
-            ? config?.firstAccount ? '创建管理员' : '注册'
-            : '登录'
-        submit.textContent = registering ? '创建账号' : '登录'
-        toggle.textContent = registering ? '已有账号，登录' : '创建账号'
-        password.autocomplete = registering ? 'new-password' : 'current-password'
-        password.minLength = registering ? 12 : 1
-        password.placeholder = registering ? '至少 12 个字符' : ''
-    }
-    const loadConfig = async (): Promise<void> => {
-        try {
-            config = await cloudJson<AccountConfig>({ url: server.value, token: '' }, 'auth/config')
-            const canSetup = config.firstAccount && config.setupRequired && saved?.owner && !saved.accountId &&
-                !!saved.token
-            toggle.hidden = !config.registrationOpen && !canSetup
-            registering = config.firstAccount && (config.registrationOpen || !!canSetup)
-            status.textContent = config.setupRequired && !canSetup ? '请先在原管理设备上建立管理员账号' : ''
-            showMode()
-        } catch {
-            status.textContent = '暂时无法连接服务器'
+    if (saved && local.syncType === 'cloud') {
+        const connection = {
+            ...saved,
+            token: '',
+            expiresAt: 0,
+            error: '登录状态已过期，请在设置中重新登录。',
         }
+        await storage.local.set({ cloud: connection, syncType: 'off' })
+        local.cloud = connection
+        local.syncType = 'off'
     }
-    toggle.addEventListener('click', () => {
-        registering = !registering
-        showMode()
-    })
-    server.addEventListener('change', () => void loadConfig())
-    server.addEventListener('invalid', () => {
-        server.closest('details')!.open = true
-    })
-    form.addEventListener('submit', (event) => {
-        event.preventDefault()
-        if (working) return
-        working = true
-        submit.disabled = true
-        toggle.disabled = true
-        form.setAttribute('aria-busy', 'true')
-        status.textContent = registering ? '正在创建账号…' : '正在登录…'
-        void connectAccount(
-            server.value,
-            username.value,
-            password.value,
-            registering,
-            /Android|iPhone|iPad/.test(navigator.userAgent) ? '我的手机' : '我的电脑',
-        ).catch((error) => {
-            status.textContent = error instanceof Error ? error.message : '登录失败，请重试。'
-            password.value = ''
-        }).finally(() => {
-            working = false
-            submit.disabled = false
-            toggle.disabled = false
-            form.setAttribute('aria-busy', 'false')
-        })
-    })
-    await loadConfig()
-    username.focus()
-    return false
+    return true
 }

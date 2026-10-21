@@ -91,6 +91,11 @@
         border-radius: 1em;
     }
 
+    .settings-header {
+        margin-inline: -12px;
+        padding-inline: 12px;
+    }
+
     aside.shown {
         transform: translateX(0) translateY(-75dvh);
     }
@@ -104,7 +109,7 @@
     }
 
     .settings-title {
-        margin: 32px 16px 0px 16px;
+        margin: 24px 8px 7px;
     }
 
     @supports not (min-height: 100dvh) {
@@ -231,20 +236,29 @@ label {
     }
 
     aside .settings-title {
-        margin: 32px 16px 0px 16px;
+        margin: 24px 8px 7px;
     }
 
     aside .wrapper {
-        padding: unset;
-        min-height: 38px;
+        min-height: 46px;
     }
 
     aside input:not(.range, .switch),
     aside .input-btn,
     aside form button,
     aside select {
-        min-height: 36px;
-        border-radius: 13px;
+        min-height: 42px;
+        border-radius: 11px;
+    }
+
+    aside .param-btn {
+        min-height: 42px;
+    }
+
+    .cloud-account-avatar {
+        flex-basis: 48px;
+        width: 48px;
+        height: 48px;
     }
 
     aside .input-btn.icon-only:hover {

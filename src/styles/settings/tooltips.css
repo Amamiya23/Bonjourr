@@ -7,15 +7,16 @@ aside span {
 }
 
 aside h2 {
-    font-weight: 450;
-    font-size: 1em;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.35;
 }
 
 .settings-title {
     display: grid;
     place-items: baseline;
     grid-template-columns: 1fr min-content;
-    margin: 32px 20px 0px 20px;
+    margin: 26px 8px 7px;
     color: var(--color-light-text);
     /* offset for when section is automatically getting scrolled to */
     scroll-margin-top: 20px;
@@ -30,16 +31,16 @@ html:dir(rtl) .settings-title {
 }
 
 aside .tooltip {
-    width: 20px;
-    min-width: 20px;
-    height: 20px;
+    width: 22px;
+    min-width: 22px;
+    height: 22px;
     padding: 0;
     border-radius: 100%;
     border: 1px solid;
     box-sizing: border-box;
     color: var(--color-light-text);
     border-color: var(--color-input);
-    background-color: var(--color-areas);
+    background-color: color-mix(in srgb, var(--color-input) 76%, transparent);
     display: flex;
     align-items: center;
     justify-content: center;

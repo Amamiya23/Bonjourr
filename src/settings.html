@@ -2,6 +2,15 @@
     <div></div>
 </div>
 
+<header class="settings-header">
+    <h1>设置</h1>
+    <button id="settings-close" type="button" aria-label="关闭设置" title="关闭设置">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+            <use href="src/assets/labels/sprites.svg#icon-close"></use>
+        </svg>
+    </button>
+</header>
+
 <div id="supporters-notif-container" class="dropdown">
     <div id="supporters-notif" tabindex="0">
         <button id="supporters-notif-close" tabindex="0">
@@ -26,6 +35,113 @@
             >Synchronized links require the user to accept permissions</label>
             <button id="b_accept-permissions" class="param-btn trn">Ask permission</button>
         </div>
+    </div>
+</div>
+
+<div class="settings-title" id="account_title">
+    <h2>账户与同步</h2>
+</div>
+
+<div class="param account-settings" id="account-settings">
+    <div id="cloud-connection-info" class="cloud-account-summary" role="status" aria-live="polite">
+        <span class="cloud-account-avatar" aria-hidden="true">B</span>
+        <span class="cloud-account-copy">
+            <strong id="cloud-account-name">Bonjourr 云端</strong>
+            <small id="cloud-account-description">登录后跨设备同步设置与快捷链接</small>
+        </span>
+        <span id="cloud-account-state" class="cloud-account-state">未登录</span>
+    </div>
+
+    <div id="cloud-sync">
+        <form id="cloud-form" class="personal-form">
+            <div id="cloud-account-fields">
+                <p class="personal-section-title">使用 Bonjourr 账号继续</p>
+                <div class="personal-field">
+                    <label for="cloud-username">用户名</label>
+                    <input id="cloud-username" name="username" autocomplete="username" maxlength="32" required />
+                </div>
+                <div class="personal-field">
+                    <label for="cloud-password">密码</label>
+                    <input id="cloud-password" name="password" type="password" autocomplete="current-password"
+                        maxlength="128" required />
+                </div>
+                <details class="cloud-server-option">
+                    <summary>服务器与设备</summary>
+                    <div class="personal-field">
+                        <label for="cloud-server">云端地址</label>
+                        <input id="cloud-server" type="url" placeholder="https://your-server.workers.dev" required />
+                    </div>
+                    <div class="wrapper">
+                        <label for="cloud-device-name">设备名称</label>
+                        <input id="cloud-device-name" maxlength="80" required />
+                    </div>
+                </details>
+                <div class="personal-actions account-form-actions">
+                    <button id="cloud-register-mode" type="button" class="param-btn" hidden>创建账号</button>
+                    <button id="cloud-login-submit" type="submit" class="param-btn btn-primary">登录</button>
+                </div>
+            </div>
+            <small id="cloud-status" class="personal-status" role="status" aria-live="polite"></small>
+        </form>
+        <div id="cloud-ready-actions" class="personal-actions" data-cloud-connected hidden>
+            <button id="cloud-sync-now" type="button" class="param-btn btn-primary">立即同步</button>
+        </div>
+        <details id="cloud-setup" data-cloud-connected hidden>
+            <summary>导入与恢复</summary>
+            <div class="personal-actions">
+                <button id="cloud-adopt" type="button" class="param-btn">采用云端内容</button>
+                <button id="cloud-initialize" type="button" class="param-btn" data-cloud-owner
+                    hidden>上传本机内容</button>
+            </div>
+        </details>
+        <div id="cloud-conflict-actions" hidden>
+            <div id="cloud-conflicts"></div>
+            <div class="personal-actions">
+                <button id="cloud-resolve" type="button" class="param-btn">保存选择</button>
+                <button id="cloud-confirm-clear" type="button" class="param-btn">确认清空</button>
+            </div>
+        </div>
+        <details data-cloud-connected hidden>
+            <summary>设备</summary>
+            <div data-cloud-owner hidden>
+                <div class="personal-actions">
+                    <button id="cloud-devices-refresh" type="button" class="param-btn">查看设备</button>
+                </div>
+                <div id="cloud-devices"></div>
+            </div>
+            <div class="personal-actions">
+                <button id="cloud-disconnect" type="button" class="param-btn btn-red">退出登录</button>
+            </div>
+        </details>
+        <details data-cloud-connected hidden>
+            <summary>修改密码</summary>
+            <form id="cloud-password-form" class="personal-form">
+                <div class="personal-field">
+                    <label for="cloud-current-password">当前密码</label>
+                    <input id="cloud-current-password" type="password" autocomplete="current-password" maxlength="128"
+                        required />
+                </div>
+                <div class="personal-field">
+                    <label for="cloud-new-password">新密码</label>
+                    <input id="cloud-new-password" type="password" autocomplete="new-password" minlength="12"
+                        maxlength="128" placeholder="至少 12 个字符" required />
+                </div>
+                <div class="personal-submit"><button type="submit" class="param-btn btn-primary">保存</button></div>
+            </form>
+        </details>
+        <details data-cloud-admin hidden>
+            <summary>管理</summary>
+            <div class="wrapper">
+                <label for="cloud-registration-open">允许注册</label>
+                <input id="cloud-registration-open" type="checkbox" class="switch" disabled />
+            </div>
+        </details>
+        <details data-cloud-connected hidden>
+            <summary>修改历史</summary>
+            <button id="cloud-history-refresh" type="button" class="param-btn">查看记录</button>
+            <div id="cloud-history"></div>
+            <button id="cloud-history-more" type="button" class="param-btn" hidden>更早的记录</button>
+        </details>
     </div>
 </div>
 
@@ -1711,13 +1827,13 @@
 </div>
 
 <div class="settings-title" id="settings-management_title">
-    <h2 class="trn">Settings management</h2>
+    <h2>同步与备份</h2>
 </div>
 
 <div class="param" id="settings-management">
     <div id="settings-sync-options" class="dropdown shown">
         <div class="wrapper">
-            <label for="i_synctype" class="trn">Synchronization type</label>
+            <label for="i_synctype">同步方式</label>
 
             <select id="i_synctype">
                 <option value="cloud">Bonjourr 云端</option>
@@ -1749,100 +1865,6 @@
                 <!-- deno-fmt-ignore -->
                 <span class="trn">Enabling persistent storage ensures that Firefox will remember your settings for as long as possible.</span>
             </p>
-        </div>
-
-        <div id="cloud-sync" class="dropdown">
-            <hr />
-            <div id="cloud-connection-info" data-cloud-connected hidden></div>
-            <form id="cloud-form" class="personal-form">
-                <div id="cloud-account-fields">
-                    <div class="personal-field">
-                        <label for="cloud-username">用户名</label>
-                        <input id="cloud-username" name="username" autocomplete="username" maxlength="32" required />
-                    </div>
-                    <div class="personal-field">
-                        <label for="cloud-password">密码</label>
-                        <input id="cloud-password" name="password" type="password" autocomplete="current-password"
-                            maxlength="128" required />
-                    </div>
-                    <details class="cloud-server-option">
-                        <summary>服务器</summary>
-                        <div class="personal-field">
-                            <label for="cloud-server">云端地址</label>
-                            <input id="cloud-server" type="url" placeholder="https://your-server.workers.dev"
-                                required />
-                        </div>
-                        <div class="wrapper">
-                            <label for="cloud-device-name">设备名称</label>
-                            <input id="cloud-device-name" maxlength="80" required />
-                        </div>
-                    </details>
-                    <div class="personal-actions account-form-actions">
-                        <button id="cloud-register-mode" type="button" class="param-btn" hidden>创建账号</button>
-                        <button id="cloud-login-submit" type="submit" class="param-btn">登录</button>
-                    </div>
-                </div>
-                <small id="cloud-status" class="personal-status" role="status" aria-live="polite"></small>
-            </form>
-            <div id="cloud-ready-actions" class="personal-actions" data-cloud-connected hidden>
-                <button id="cloud-sync-now" type="button" class="param-btn">立即同步</button>
-            </div>
-            <details id="cloud-setup" data-cloud-connected hidden>
-                <summary>导入与恢复</summary>
-                <div class="personal-actions">
-                    <button id="cloud-adopt" type="button" class="param-btn">采用云端内容</button>
-                    <button id="cloud-initialize" type="button" class="param-btn" data-cloud-owner
-                        hidden>上传本机内容</button>
-                </div>
-            </details>
-            <div id="cloud-conflict-actions" hidden>
-                <div id="cloud-conflicts"></div>
-                <div class="personal-actions">
-                    <button id="cloud-resolve" type="button" class="param-btn">保存选择</button>
-                    <button id="cloud-confirm-clear" type="button" class="param-btn">确认清空</button>
-                </div>
-            </div>
-            <details data-cloud-connected hidden>
-                <summary>设备</summary>
-                <div data-cloud-owner hidden>
-                    <div class="personal-actions">
-                        <button id="cloud-devices-refresh" type="button" class="param-btn">查看设备</button>
-                    </div>
-                    <div id="cloud-devices"></div>
-                </div>
-                <div class="personal-actions">
-                    <button id="cloud-disconnect" type="button" class="param-btn">退出登录</button>
-                </div>
-            </details>
-            <details data-cloud-connected hidden>
-                <summary>修改密码</summary>
-                <form id="cloud-password-form" class="personal-form">
-                    <div class="personal-field">
-                        <label for="cloud-current-password">当前密码</label>
-                        <input id="cloud-current-password" type="password" autocomplete="current-password"
-                            maxlength="128" required />
-                    </div>
-                    <div class="personal-field">
-                        <label for="cloud-new-password">新密码</label>
-                        <input id="cloud-new-password" type="password" autocomplete="new-password" minlength="12"
-                            maxlength="128" placeholder="至少 12 个字符" required />
-                    </div>
-                    <div class="personal-submit"><button type="submit" class="param-btn">保存</button></div>
-                </form>
-            </details>
-            <details data-cloud-admin hidden>
-                <summary>管理</summary>
-                <div class="wrapper">
-                    <label for="cloud-registration-open">允许注册</label>
-                    <input id="cloud-registration-open" type="checkbox" class="switch" disabled />
-                </div>
-            </details>
-            <details data-cloud-connected hidden>
-                <summary>修改历史</summary>
-                <button id="cloud-history-refresh" type="button" class="param-btn">查看记录</button>
-                <div id="cloud-history"></div>
-                <button id="cloud-history-more" type="button" class="param-btn" hidden>更早的记录</button>
-            </details>
         </div>
 
         <div id="gist-sync" class="dropdown">
