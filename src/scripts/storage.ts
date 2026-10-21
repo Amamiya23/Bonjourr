@@ -184,7 +184,7 @@ async function syncSet(keyval: Record<string, unknown>, fn = () => {}): Promise<
 async function syncRemove(key: string): Promise<void> {
     switch (storage.type.get()) {
         case 'webext-sync': {
-            chrome.storage.sync.remove(key)
+            await chrome.storage.sync.remove(key)
             return
         }
 
@@ -193,8 +193,7 @@ async function syncRemove(key: string): Promise<void> {
 
             if (syncStorage) {
                 delete syncStorage[key]
-                await chrome.storage.local.remove('syncStorage')
-                chrome.storage.local.set({ syncStorage })
+                await chrome.storage.local.set({ syncStorage })
             }
 
             return
@@ -247,7 +246,9 @@ async function localSet(value: Record<string, unknown>): Promise<void> {
 
         default: {
             for (const [key, val] of Object.entries(value)) {
-                if (typeof val === 'string') {
+                if (val === undefined) {
+                    localStorage.removeItem(key)
+                } else if (typeof val === 'string') {
                     localStorage.setItem(key, val)
                 } else {
                     localStorage.setItem(key, JSON.stringify(val))
@@ -285,6 +286,7 @@ async function localGet(keys?: string | string[]): Promise<Local> {
 
             for (const key of neededKeys) {
                 const item = globalThis.localStorage.getItem(key)
+                if (item === null || item === 'undefined') continue
                 const isJson = item && (item.startsWith('{') || item.startsWith('['))
                 const isBool = item && (item === 'true' || item === 'false')
                 const isNoom = item && Number.isNaN(Number(item)) === false

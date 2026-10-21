@@ -235,6 +235,8 @@ export const LOCAL_DEFAULT: Local = {
     weatherApiOrigin: '',
     weatherRetryAt: 0,
     webdav: undefined,
+    cloud: undefined,
+    cloudCacheAccount: undefined,
     syncType: PLATFORM === 'online' ? 'off' : 'browser',
     gistToken: '',
     userQuoteSelection: 0,

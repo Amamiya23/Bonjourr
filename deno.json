@@ -1,5 +1,6 @@
 {
     "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
+    "workspace": ["./worker"],
     "tasks": {
         "build": "deno run --allow-all ./tasks/build.ts",
         "edge": "deno run --allow-all ./tasks/build.ts edge dev",
@@ -7,8 +8,15 @@
         "firefox": "deno run --allow-all ./tasks/build.ts firefox dev",
         "online": "deno run --allow-all ./tasks/build.ts online dev",
         "serve": "deno run --allow-net --allow-read ./tasks/serve.ts 8000",
+        "cloud:build": "deno task build online",
+        "cloud:types": "npx --yes wrangler@4.151.2 types worker-configuration.d.ts --env-interface CloudflareEnv",
+        "cloud:dev": "npx --yes wrangler@4.151.2 dev --port 8787",
+        "cloud:migrate": "npx --yes wrangler@4.151.2 d1 migrations apply bonjourr-cloud --remote",
+        "cloud:deploy": "npx --yes wrangler@4.151.2 deploy",
+        "cloud:account": "deno run --allow-read=.cloud --allow-write=.cloud --allow-net ./tasks/account-setup.ts",
+        "cloud:secrets": "deno run --allow-read=.cloud --allow-write=.cloud ./tasks/cloud-secrets.ts",
         "test": "deno test --allow-read --allow-env --reporter=dot",
-        "types": "deno check",
+        "types": "deno check src/ tasks/ tests/ && deno check --config worker/deno.json --sloppy-imports worker/index.ts worker/webdav.test.ts",
         "format": "deno fmt",
         "app": "docker compose -f docker/compose.yaml up",
         "archive": "deno task archive:build && deno task archive:run",
@@ -34,7 +42,9 @@
             "src",
             "tasks",
             "tests",
-            "_locales"
+            "_locales",
+            "worker",
+            "wrangler.jsonc"
         ],
         "rules": {
             "tags": [

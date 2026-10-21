@@ -1,6 +1,7 @@
 import { altMode, darkmode, design, favicon, pageControl, tabTitle, textShadow } from './features/others.ts'
 import { supportersNotifications } from './features/supporters.ts'
 import { synchronization } from './features/synchronization/index.ts'
+import { cloudAccountAccess } from './features/synchronization/cloud-account.ts'
 import { backgroundsInit } from './features/backgrounds/index.ts'
 import { interfacePopup } from './features/popup.ts'
 import { moveElements } from './features/move/index.ts'
@@ -66,6 +67,7 @@ async function startup(): Promise<void> {
         await storage.sync.set(sync)
     }
 
+    if (!await cloudAccountAccess(local)) return
     await setTranslationCache(sync.lang, local)
 
     displayInterface(undefined, sync)

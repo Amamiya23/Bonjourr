@@ -1720,9 +1720,9 @@
             <label for="i_synctype" class="trn">Synchronization type</label>
 
             <select id="i_synctype">
+                <option value="cloud">Bonjourr 云端</option>
                 <option class="trn not-online" value="browser" selected>Browser</option>
                 <option value="gist">Github Gist</option>
-                <option value="webdav">WebDAV</option>
                 <option class="trn" value="url">Distant URL</option>
                 <option class="trn" value="off">Disabled</option>
             </select>
@@ -1751,43 +1751,98 @@
             </p>
         </div>
 
-        <div id="webdav-sync" class="dropdown">
+        <div id="cloud-sync" class="dropdown">
             <hr />
-            <form id="webdav-form" class="personal-form">
-                <div class="personal-field">
-                    <label for="webdav-url">服务器</label>
-                    <input id="webdav-url" type="url" placeholder="https://example.com/dav/" required />
+            <div id="cloud-connection-info" data-cloud-connected hidden></div>
+            <form id="cloud-form" class="personal-form">
+                <div id="cloud-account-fields">
+                    <div class="personal-field">
+                        <label for="cloud-username">用户名</label>
+                        <input id="cloud-username" name="username" autocomplete="username" maxlength="32" required />
+                    </div>
+                    <div class="personal-field">
+                        <label for="cloud-password">密码</label>
+                        <input id="cloud-password" name="password" type="password" autocomplete="current-password"
+                            maxlength="128" required />
+                    </div>
+                    <details class="cloud-server-option">
+                        <summary>服务器</summary>
+                        <div class="personal-field">
+                            <label for="cloud-server">云端地址</label>
+                            <input id="cloud-server" type="url" placeholder="https://your-server.workers.dev"
+                                required />
+                        </div>
+                        <div class="wrapper">
+                            <label for="cloud-device-name">设备名称</label>
+                            <input id="cloud-device-name" maxlength="80" required />
+                        </div>
+                    </details>
+                    <div class="personal-actions account-form-actions">
+                        <button id="cloud-register-mode" type="button" class="param-btn" hidden>创建账号</button>
+                        <button id="cloud-login-submit" type="submit" class="param-btn">登录</button>
+                    </div>
                 </div>
-                <div class="wrapper">
-                    <label for="webdav-directory">目录</label>
-                    <input id="webdav-directory" value="Bonjourr" placeholder="Bonjourr" maxlength="256" />
-                </div>
-                <div class="wrapper">
-                    <label for="webdav-username">用户名</label>
-                    <input id="webdav-username" autocomplete="username" />
-                </div>
-                <div class="wrapper">
-                    <label for="webdav-password">密码</label>
-                    <input id="webdav-password" type="password" autocomplete="off" />
-                </div>
-                <div class="wrapper">
-                    <label for="webdav-auto">自动同步</label>
-                    <input id="webdav-auto" class="switch" type="checkbox" />
-                </div>
-                <div class="personal-submit">
-                    <button id="webdav-test" class="param-btn" type="submit">保存</button>
-                </div>
-                <small id="webdav-status" class="personal-status" role="status" aria-live="polite"
-                    aria-atomic="true"></small>
+                <small id="cloud-status" class="personal-status" role="status" aria-live="polite"></small>
             </form>
-            <hr />
-            <div class="wrapper personal-action-row">
-                <span>备份</span>
+            <div id="cloud-ready-actions" class="personal-actions" data-cloud-connected hidden>
+                <button id="cloud-sync-now" type="button" class="param-btn">立即同步</button>
+            </div>
+            <details id="cloud-setup" data-cloud-connected hidden>
+                <summary>导入与恢复</summary>
                 <div class="personal-actions">
-                    <button id="webdav-upload" type="button" class="param-btn">备份</button>
-                    <button id="webdav-download" type="button" class="param-btn">恢复</button>
+                    <button id="cloud-adopt" type="button" class="param-btn">采用云端内容</button>
+                    <button id="cloud-initialize" type="button" class="param-btn" data-cloud-owner
+                        hidden>上传本机内容</button>
+                </div>
+            </details>
+            <div id="cloud-conflict-actions" hidden>
+                <div id="cloud-conflicts"></div>
+                <div class="personal-actions">
+                    <button id="cloud-resolve" type="button" class="param-btn">保存选择</button>
+                    <button id="cloud-confirm-clear" type="button" class="param-btn">确认清空</button>
                 </div>
             </div>
+            <details data-cloud-connected hidden>
+                <summary>设备</summary>
+                <div data-cloud-owner hidden>
+                    <div class="personal-actions">
+                        <button id="cloud-devices-refresh" type="button" class="param-btn">查看设备</button>
+                    </div>
+                    <div id="cloud-devices"></div>
+                </div>
+                <div class="personal-actions">
+                    <button id="cloud-disconnect" type="button" class="param-btn">退出登录</button>
+                </div>
+            </details>
+            <details data-cloud-connected hidden>
+                <summary>修改密码</summary>
+                <form id="cloud-password-form" class="personal-form">
+                    <div class="personal-field">
+                        <label for="cloud-current-password">当前密码</label>
+                        <input id="cloud-current-password" type="password" autocomplete="current-password"
+                            maxlength="128" required />
+                    </div>
+                    <div class="personal-field">
+                        <label for="cloud-new-password">新密码</label>
+                        <input id="cloud-new-password" type="password" autocomplete="new-password" minlength="12"
+                            maxlength="128" placeholder="至少 12 个字符" required />
+                    </div>
+                    <div class="personal-submit"><button type="submit" class="param-btn">保存</button></div>
+                </form>
+            </details>
+            <details data-cloud-admin hidden>
+                <summary>管理</summary>
+                <div class="wrapper">
+                    <label for="cloud-registration-open">允许注册</label>
+                    <input id="cloud-registration-open" type="checkbox" class="switch" disabled />
+                </div>
+            </details>
+            <details data-cloud-connected hidden>
+                <summary>修改历史</summary>
+                <button id="cloud-history-refresh" type="button" class="param-btn">查看记录</button>
+                <div id="cloud-history"></div>
+                <button id="cloud-history-more" type="button" class="param-btn" hidden>更早的记录</button>
+            </details>
         </div>
 
         <div id="gist-sync" class="dropdown">
@@ -1893,22 +1948,106 @@
 <div class="param" id="reset-settings">
     <div id="reset-first" class="wrapper shown">
         <label for="b_reset-first" class="trn">Reset all settings</label>
-
         <div>
             <button id="b_reset-first" class="param-btn" title="Reset all settings" aria-label="Reset all settings">
                 <span class="trn">Reset</span>
             </button>
         </div>
     </div>
-
     <div id="reset-conf" class="wrapper">
         <span class="trn">Are you sure?</span>
-
         <div>
             <button id="b_reset-apply" class="param-btn btn-red trn">I am sure</button>
             <button id="b_reset-cancel" class="param-btn trn">No, go back</button>
         </div>
     </div>
+</div>
+
+<div class="settings-title" id="backup_title">
+    <h2>备份</h2>
+</div>
+
+<div class="param" id="backup-settings">
+    <details id="cloud-backup">
+        <summary>云端备份</summary>
+        <p id="cloud-backup-access" class="cloud-note">登录后可用</p>
+        <div data-cloud-owner hidden>
+            <p class="cloud-note">WebDAV · 每 6 小时自动备份</p>
+            <form id="cloud-backup-form" class="personal-form">
+                <div class="personal-field">
+                    <label for="cloud-backup-url">WebDAV 地址</label>
+                    <input id="cloud-backup-url" type="url" required />
+                </div>
+                <div class="wrapper">
+                    <label for="cloud-backup-directory">目录</label>
+                    <input id="cloud-backup-directory" value="BonjourrCloud" required />
+                </div>
+                <div class="wrapper">
+                    <label for="cloud-backup-user">用户名</label>
+                    <input id="cloud-backup-user" autocomplete="username" />
+                </div>
+                <div class="wrapper">
+                    <label for="cloud-backup-password">密码</label>
+                    <input id="cloud-backup-password" type="password" autocomplete="off" placeholder="留空保留原密码" />
+                </div>
+                <div class="personal-actions">
+                    <button id="cloud-backup-import" type="button" class="param-btn">使用本机配置</button>
+                    <button type="submit" class="param-btn">保存</button>
+                </div>
+            </form>
+            <div class="personal-actions">
+                <button id="cloud-backup-now" type="button" class="param-btn">立即备份</button>
+                <button id="cloud-backups-refresh" type="button" class="param-btn">查看备份</button>
+            </div>
+            <small id="cloud-backup-status" class="personal-status" role="status" aria-live="polite"></small>
+            <div id="cloud-backups"></div>
+            <div class="personal-actions">
+                <button id="cloud-backup-disable" type="button" class="param-btn">停止自动备份</button>
+            </div>
+            <details>
+                <summary>从文件恢复</summary>
+                <div class="personal-field">
+                    <label for="cloud-backup-filename">备份文件名</label>
+                    <input id="cloud-backup-filename" placeholder="bonjourr-时间-编号.json" />
+                </div>
+                <div class="personal-actions">
+                    <button id="cloud-backup-file-restore" type="button" class="param-btn">恢复</button>
+                </div>
+            </details>
+        </div>
+    </details>
+    <details>
+        <summary>本机备份</summary>
+        <div id="webdav-sync">
+            <form id="webdav-form" class="personal-form">
+                <div class="personal-field">
+                    <label for="webdav-url">WebDAV 地址</label>
+                    <input id="webdav-url" type="url" placeholder="https://example.com/dav/" required />
+                </div>
+                <div class="wrapper">
+                    <label for="webdav-directory">目录</label>
+                    <input id="webdav-directory" value="Bonjourr" placeholder="Bonjourr" maxlength="256" />
+                </div>
+                <div class="wrapper">
+                    <label for="webdav-username">用户名</label>
+                    <input id="webdav-username" autocomplete="username" />
+                </div>
+                <div class="wrapper">
+                    <label for="webdav-password">密码</label>
+                    <input id="webdav-password" type="password" autocomplete="off" />
+                </div>
+                <div class="personal-submit">
+                    <button id="webdav-test" class="param-btn" type="submit">保存</button>
+                </div>
+                <small id="webdav-status" class="personal-status" role="status" aria-live="polite"
+                    aria-atomic="true"></small>
+            </form>
+            <div class="personal-actions">
+                <button id="webdav-upload" type="button" class="param-btn">备份</button>
+                <button id="webdav-download" type="button" class="param-btn">恢复</button>
+            </div>
+        </div>
+    </details>
 </div>
 
 <div id="settings-footer" aria-hidden="true"></div>

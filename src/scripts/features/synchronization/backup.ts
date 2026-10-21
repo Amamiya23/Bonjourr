@@ -416,7 +416,10 @@ function pickBackupLocal(value: Record<string, unknown> | BackupLocal): BackupLo
         result.backgroundCompressFiles = input.backgroundCompressFiles
     }
     if (typeof input.backgroundLastChange === 'string') result.backgroundLastChange = input.backgroundLastChange
-    if (typeof input.syncType === 'string' && ['browser', 'gist', 'url', 'webdav', 'off'].includes(input.syncType)) {
+    if (
+        typeof input.syncType === 'string' &&
+        ['browser', 'gist', 'url', 'webdav', 'cloud', 'off'].includes(input.syncType)
+    ) {
         result.syncType = input.syncType as NonNullable<Local['syncType']>
     }
     if (isRecord(input.webdav)) {

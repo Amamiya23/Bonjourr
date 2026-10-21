@@ -2,11 +2,16 @@ name: ci
 on:
     push:
         branches:
-            - "*"
+            - '*'
         paths:
-            - "src/**"
-            - "tests/**"
-            - "_locales/**"
+            - 'src/**'
+            - 'tests/**'
+            - '_locales/**'
+            - 'worker/**'
+            - 'tasks/**'
+            - 'deno.json'
+            - 'wrangler.jsonc'
+            - '.github/workflows/ci.yml'
 
 jobs:
     checks:
@@ -14,8 +19,12 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: denoland/setup-deno@v2
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+            - run: deno task cloud:types
             - run: |
-                deno lint
-                deno task types
-                deno task test
-                deno task build
+                  deno lint
+                  deno task types
+                  deno task test
+                  deno task build

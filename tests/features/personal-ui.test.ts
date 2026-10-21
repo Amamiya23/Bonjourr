@@ -203,7 +203,7 @@ Deno.test({
             assertEquals((await storage.local.get('weatherApiKey')).weatherApiKey, 'uapi-test')
             assertEquals((await storage.sync.get()).weather.city, '北京')
             assertEquals(document.getElementById('weather-api-status')?.textContent?.startsWith('连接成功'), true)
-            assertEquals(document.getElementById('current-desc')?.textContent, '晴. ')
+            assertEquals(document.getElementById('current-desc')?.textContent, '晴 ')
         } finally {
             globalThis.fetch = original
         }
@@ -260,14 +260,17 @@ Deno.test({
 })
 
 Deno.test({
-    name: 'WebDAV controls are available when selected and compact layout is reversible',
+    name: 'WebDAV backups remain separate from sync selection and compact layout is reversible',
     sanitizeOps: false,
     sanitizeResources: false,
     fn: async () => {
-        synchronization(undefined, { type: 'webdav' })
-        await flush()
-        assertEquals(document.getElementById('webdav-sync')?.classList.contains('shown'), true)
-        assertEquals((await storage.local.get('syncType')).syncType, 'webdav')
+        assertEquals(document.querySelector('#i_synctype option[value="webdav"]'), null)
+        for (const type of ['cloud', 'off']) {
+            synchronization(undefined, { type })
+            await flush()
+            assertEquals((await storage.local.get('syncType')).syncType, type)
+            assertEquals(document.querySelector('#webdav-form')?.closest('.param')?.id, 'backup-settings')
+        }
         const input = document.querySelector<HTMLInputElement>('#compact-layout')!
         assertEquals(document.getElementById('interface')?.classList.contains('compact'), true)
         input.checked = false
@@ -291,7 +294,6 @@ Deno.test({
         const status = document.getElementById('webdav-status')!
         document.querySelector<HTMLInputElement>('#webdav-url')!.value = 'https://example.com/dav/'
         document.querySelector<HTMLInputElement>('#webdav-directory')!.value = 'Bonjourr'
-        document.querySelector<HTMLInputElement>('#webdav-auto')!.checked = false
         const remote = {
             format: 'bonjourr-webdav',
             version: 3,

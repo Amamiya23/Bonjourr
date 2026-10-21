@@ -1,16 +1,14 @@
-if (globalThis.chrome) {
-    if (chrome.storage) {
-        chrome.action.onClicked.addListener(createNewTab)
-        chrome.runtime.onInstalled.addListener(handleInstalled)
-        chrome.runtime.setUninstallURL('https://bonjourr.fr/goodbye')
-    }
+if (globalThis.chrome?.storage) {
+    chrome.action.onClicked.addListener(createNewTab)
+    chrome.runtime.onInstalled.addListener(handleInstalled)
+    chrome.runtime.setUninstallURL('https://bonjourr.fr/goodbye')
 } else {
-    self.addEventListener('activate', updateCache)
+    self.addEventListener('install', (event) => event.waitUntil(self.skipWaiting()))
+    self.addEventListener('activate', (event) => event.waitUntil(updateCache()))
     self.addEventListener('fetch', retrieveCache)
 }
 
-const CACHE_KEY = '22.3.0'
-const API_URLS = ['unsplash.com', 'jsdelivr.net', 'api.bonjourr']
+const CACHE_KEY = 'bonjourr-shell-cloud-v1'
 
 // Web Extension
 
@@ -31,32 +29,33 @@ async function updateCache() {
     const keys = await caches.keys()
 
     for (const key of keys) {
-        if (CACHE_KEY !== key) {
+        if (key !== CACHE_KEY && (key.startsWith('bonjourr-shell-') || /^\d+\.\d+\.\d+$/.test(key))) {
             await caches.delete(key)
         }
     }
+    await self.clients.claim()
 }
 
 function retrieveCache(event) {
-    const url = event.request.url
-    const isApi = API_URLS.some((api) => url.includes(api))
+    const request = event.request
+    const url = new URL(request.url)
+    if (
+        request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/') ||
+        request.headers.has('Authorization')
+    ) return
 
     event.respondWith(
         (async () => {
-            if (isApi) {
-                return fetch(event.request)
-            }
-
-            const cachedResponse = await caches.match(event.request)
-
-            if (cachedResponse) {
-                return cachedResponse
-            }
-
             const cache = await caches.open(CACHE_KEY)
-            cache.add(event.request.url)
-
-            return fetch(event.request)
+            try {
+                const response = await fetch(request)
+                if (response.ok && response.type === 'basic') await cache.put(request, response.clone())
+                return response
+            } catch (error) {
+                const cached = await cache.match(request)
+                if (cached) return cached
+                throw error
+            }
         })(),
     )
 }

@@ -1,0 +1,26 @@
+{
+    "$schema": "https://unpkg.com/wrangler@4.151.2/config-schema.json",
+    "name": "bonjourr-cloud",
+    "main": "worker/index.ts",
+    "compatibility_date": "2026-10-21",
+    "compatibility_flags": ["nodejs_compat"],
+    "workers_dev": true,
+    "secrets": { "required": ["OWNER_KEY", "BACKUP_KEY"] },
+    "assets": {
+        "directory": "./release/online",
+        "binding": "ASSETS",
+        "run_worker_first": ["/api/*"]
+    },
+    "d1_databases": [{
+        "binding": "DB",
+        "database_name": "bonjourr-cloud",
+        "database_id": "a76dcbe0-84cd-4528-973d-f4ddccd80a09",
+        "migrations_dir": "worker/migrations"
+    }],
+    "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "bonjourr-cloud-assets" }],
+    "vars": {
+        "ALLOWED_ORIGINS": "https://bonjourr.telyra.top,https://bonjourr-cloud.zjc020118.workers.dev,https://bonjourr-telyra.pages.dev,http://localhost:8000,http://127.0.0.1:8000"
+    },
+    "triggers": { "crons": ["0 */6 * * *"] },
+    "observability": { "enabled": true, "head_sampling_rate": 1 }
+}

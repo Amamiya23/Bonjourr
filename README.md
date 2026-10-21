@@ -148,6 +148,8 @@ If you wish to self-host the APIs used by Bonjourr, you can do so by following t
 
 ### Run locally
 
+For the Cloudflare Workers server, cross-device sync, and WebDAV history backups, see [the cloud deployment and migration guide](docs/CLOUD.md).
+
 - Install Deno runtime: https://docs.deno.com/runtime/
 - Optionally add Deno extension for [VSCode](https://marketplace.visualstudio.com/items?itemName=denoland.vscode-deno) or [Zed](https://zed.dev/docs/languages/deno)
 - Clone this repository

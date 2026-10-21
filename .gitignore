@@ -5,10 +5,13 @@
 .idea
 .prettierignore
 .wrangler
+.cloud/
+worker-configuration.d.ts
 config.codekit3
 manifest.json
 
 .env
+.dev.vars
 .env.json
 env.json
 

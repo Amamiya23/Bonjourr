@@ -1,14 +1,17 @@
 import type { Background, Quote, SimpleWeather } from './shared.ts'
 import type { Sync } from './sync.ts'
+import type { CloudConnection } from '../scripts/shared/cloud.ts'
 
 export type BackgroundUrlState = 'NONE' | 'LOADING' | 'OK' | 'NOT_URL' | 'CANT_REACH' | 'NOT_MEDIA'
-export type SyncType = 'browser' | 'gist' | 'url' | 'webdav' | 'off'
+export type SyncType = 'browser' | 'gist' | 'url' | 'webdav' | 'cloud' | 'off'
 
 export interface Local {
     weatherApiKey?: string
     weatherApiOrigin?: string
     weatherRetryAt?: number
     webdav?: WebdavConfig
+    cloud?: CloudConnection
+    cloudCacheAccount?: string
     fonts?: FontListItem[]
     fontface?: string
     userQuoteSelection: number

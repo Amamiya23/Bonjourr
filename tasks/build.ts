@@ -103,8 +103,8 @@ function html(platform: Platform): void {
     const settingsdata = Deno.readTextFileSync('src/settings.html')
     const helpModeData = Deno.readTextFileSync('src/help-mode.html')
 
-    const favicon = '<link rel="icon" href="/src/assets/favicon.ico" type="image/x-icon" id="favicon" />'
-    const icon = '<link rel="apple-touch-icon" href="src/assets/apple-touch-icon.png" />'
+    const favicon = '<link rel="icon" href="/src/assets/favicons/favicon.ico" type="image/x-icon" id="favicon" />'
+    const icon = '<link rel="apple-touch-icon" href="src/assets/favicons/apple-touch-icon.png" />'
     const manifest = '<link rel="manifest" href="manifest.webmanifest">'
     const storage = '<script src="src/scripts/webext-storage.js"></script>'
 
@@ -189,6 +189,8 @@ function scripts(platform: Platform, env: Env): void {
             'src/scripts/services/webext-storage.js',
             `release/${platform}/src/scripts/webext-storage.js`,
         )
+    } else {
+        Deno.copyFileSync('src/scripts/services/service-worker.js', 'release/online/service-worker.js')
     }
 }
 

@@ -12,7 +12,7 @@ import {
     WebdavError,
     webdavFile,
 } from './webdav.ts'
-import { saveWebdavSync, scheduleWebdavSync, showWebdavStatus, withWebdavLock } from './webdav-auto.ts'
+import { saveWebdavSync, showWebdavStatus, withWebdavLock } from './webdav-auto.ts'
 import type { Local, WebdavConfig } from '../../../types/local.ts'
 import type { BackupPayload } from './backup.ts'
 
@@ -24,10 +24,9 @@ export function webdavSettings(local: Local): void {
         const directory = document.querySelector<HTMLInputElement>('#webdav-directory')
         const username = document.querySelector<HTMLInputElement>('#webdav-username')
         const password = document.querySelector<HTMLInputElement>('#webdav-password')
-        const auto = document.querySelector<HTMLInputElement>('#webdav-auto')
         const status = document.getElementById('webdav-status')
         const testButton = document.querySelector<HTMLButtonElement>('#webdav-test')
-        if (!form || !url || !directory || !username || !password || !auto || !status || !testButton) return
+        if (!form || !url || !directory || !username || !password || !status || !testButton) return
         url.value = local.webdav?.url ?? ''
         directory.value = local.webdav ? local.webdav.directory ?? '' : 'Bonjourr'
         // Old versions stored the complete backup path in URL. Keep using that exact location.
@@ -45,9 +44,8 @@ export function webdavSettings(local: Local): void {
         }
         username.value = local.webdav?.username ?? ''
         password.value = local.webdav?.password ?? ''
-        auto.checked = local.webdav?.autoSync ?? false
         status.textContent = local.webdav?.error ||
-            (local.webdav?.lastSync ? `上次同步 ${new Date(local.webdav.lastSync).toLocaleString()}` : '')
+            (local.webdav?.lastSync ? `上次备份操作 ${new Date(local.webdav.lastSync).toLocaleString()}` : '')
         if (local.webdav?.error) status.dataset.state = 'error'
         const controls = () =>
             Array.from(
@@ -82,7 +80,7 @@ export function webdavSettings(local: Local): void {
                     directory: directory.value.trim(),
                     username: username.value.trim(),
                     password: password.value,
-                    autoSync: auto.checked,
+                    autoSync: false,
                 }
                 webdavFile(config)
                 await requestOrigin(config.url)
@@ -117,7 +115,6 @@ export function webdavSettings(local: Local): void {
                 controls().forEach((button) => {
                     button.disabled = false
                 })
-                scheduleWebdavSync(true)
             }
         }
         form.addEventListener('submit', (event) => {
@@ -126,7 +123,7 @@ export function webdavSettings(local: Local): void {
                 async (config) => {
                     await testWebdav(config)
                     await storage.local.set({ webdav: config })
-                    status.textContent = config.autoSync ? '已连接，自动同步已开启' : '已连接'
+                    status.textContent = '已连接'
                 },
                 true,
             )
@@ -165,7 +162,7 @@ export function webdavSettings(local: Local): void {
                 if (await webdavFingerprint() !== fingerprint) throw new Error('本地设置已变化，请重新备份。')
                 const etag = await uploadWebdav(config, backup, previousBackup, allowOverwrite)
                 await saveWebdavSync(config, fingerprint, etag)
-                status.textContent = hasStrongWebdavEtag(etag) ? '备份完成' : '备份完成；此服务器暂不能自动同步。'
+                status.textContent = '备份完成'
             })
         })
         const restore = async (backup: BackupPayload, config: WebdavConfig): Promise<boolean> => {

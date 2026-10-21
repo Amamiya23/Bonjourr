@@ -5,7 +5,8 @@ import { networkForm } from '../../shared/form.ts'
 import { fadeOut } from '../../shared/dom.ts'
 import { storage } from '../../storage.ts'
 import { webdavSettings } from './webdav-settings.ts'
-import { initWebdavAutoSync, scheduleWebdavSync } from './webdav-auto.ts'
+import { cloudSettings } from './cloud-settings.ts'
+import { initCloudSync, scheduleCloudSync } from './cloud-sync.ts'
 
 import type { Local, SyncType } from '../../../types/local.ts'
 
@@ -25,7 +26,12 @@ const urlsyncform = networkForm('f_urlsync')
 
 export function synchronization(init?: Local, update?: SyncUpdate): void {
     if (init) {
-        initWebdavAutoSync()
+        if (init.syncType === 'webdav') {
+            init.syncType = 'off'
+            void storage.local.set({ syncType: 'off' })
+        }
+        initCloudSync()
+        cloudSettings()
         webdavSettings(init)
         onSettingsLoad(() => {
             toggleSyncSettingsOption(init)
@@ -141,7 +147,7 @@ async function updateSyncOption(update: SyncUpdate): Promise<void> {
         local.syncType = update.type
         await storage.local.set({ syncType: local.syncType })
         await storage.type.change(update.type === 'browser' ? 'sync' : 'local', data)
-        scheduleWebdavSync(true)
+        scheduleCloudSync(true)
 
         toggleSyncSettingsOption(local)
         handleStoragePersistence(update.type)
@@ -174,7 +180,7 @@ async function toggleSyncSettingsOption(local?: Local): Promise<void> {
     const gistToken = local?.gistToken
     const distantUrl = local?.distantUrl
     const type = local?.syncType
-    document.getElementById('webdav-sync')?.classList.toggle('shown', type === 'webdav')
+    document.getElementById('cloud-sync')?.classList.toggle('shown', type === 'cloud')
 
     const iGistsync = document.querySelector<HTMLInputElement>('#i_gistsync')
     const iUrlsync = document.querySelector<HTMLInputElement>('#i_urlsync')
@@ -198,6 +204,7 @@ async function toggleSyncSettingsOption(local?: Local): Promise<void> {
 
     switch (type) {
         case 'webdav':
+        case 'cloud':
         case 'off':
         case 'browser': {
             document.getElementById('url-sync')?.classList.remove('shown')
@@ -242,7 +249,7 @@ async function toggleSyncSettingsOption(local?: Local): Promise<void> {
 // Type check
 
 function isSyncType(val = ''): val is SyncType {
-    return ['browser', 'gist', 'url', 'webdav', 'off'].includes(val)
+    return ['browser', 'gist', 'url', 'cloud', 'off'].includes(val)
 }
 
 // function isSyncFreq(val: string): val is SyncFreq {

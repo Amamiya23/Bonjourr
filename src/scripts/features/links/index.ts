@@ -237,7 +237,7 @@ export function initblocks(sync: Sync, local?: Local): true {
         linkgroup.dataset.group = group.title
         linkgroup.dataset.empty = String(group.links.length === 0)
         linkgroup.dataset.emptyLabel = tradThis(
-            'No apps on this page yet. Right-click to add one, or open Quick Links settings.',
+            'Add link',
         )
         linkgroup.classList.toggle('pinned', group.pinned)
         linkgroup.classList.toggle('synced', group.synced)
