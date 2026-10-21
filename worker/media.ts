@@ -17,12 +17,16 @@ const SUPPORTED_STOREFRONTS: AppStoreStorefront[] = ['us', 'cn']
 const DEFAULT_STOREFRONTS: AppStoreStorefront[] = ['us', 'cn']
 const FAVICON_BASE = 'https://services.bonjourr.fr/favicon/blob/'
 const CACHE_BASE = 'https://media-cache.bonjourr.invalid/app-store/v2'
+const THESVG_BASE = 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main'
+const THESVG_CACHE_URL = 'https://media-cache.bonjourr.invalid/thesvg/v1/registry'
+const THESVG_BODY_BYTES = 8 * 1024 * 1024
 
 interface ParsedCandidateRequest {
     kind: 'logo' | 'icon'
     mode: 'search' | 'auto'
     items: MediaCandidateRequestItem[]
     limit: number
+    theSvg: { enabled: boolean }
     appStore: {
         enabled: boolean
         storefronts: AppStoreStorefront[]
@@ -57,6 +61,21 @@ interface WaitUntil {
     waitUntil(promise: Promise<unknown>): void
 }
 
+interface TheSvgIcon {
+    slug: string
+    title: string
+    aliases?: string[]
+    variants: Partial<Record<string, string>>
+}
+
+interface CachedTheSvgRegistry {
+    fetchedAt: number
+    icons: TheSvgIcon[]
+}
+
+let theSvgRegistry: CachedTheSvgRegistry | undefined
+let theSvgRequest: Promise<TheSvgIcon[]> | undefined
+
 const appStoreRequests = new Map<string, Promise<RankedAppleResult[]>>()
 let appStoreRetryAt = 0
 
@@ -73,26 +92,29 @@ export async function mediaCandidates(request: Request, ctx?: WaitUntil): Promis
     for (const item of parsed.items) {
         const builtIn = builtInCandidates(item)
         const query = builtIn.matchedQuery ?? brandQuery(item)
-        let appStore: MediaCandidate[] = []
-        let appStoreStatus: MediaCandidateResult['appStoreStatus']
-        if (shouldSearchAppStore(parsed) && query) {
-            try {
-                const source = await appStoreCandidates(query, parsed.appStore.storefronts, ctx)
-                appStore = source.candidates
-                appStoreStatus = source.status
-            } catch {
-                appStoreStatus = { state: 'unavailable' }
-            }
-        }
+        const search = parsed.kind === 'logo' && parsed.mode === 'search' && parsed.items.length === 1 && !!query
+        const [apple, svg] = await Promise.all([
+            search && parsed.appStore.enabled
+                ? appStoreCandidates(query, parsed.appStore.storefronts, ctx).catch(() => ({
+                    candidates: [],
+                    status: { state: 'unavailable' as const },
+                }))
+                : undefined,
+            search && parsed.theSvg.enabled ? theSvgCandidates(query, ctx) : undefined,
+        ])
+        const appStore = apple?.candidates ?? []
+        const theSvg = svg?.candidates ?? []
         const favicon = faviconCandidates(item)
-        const best = builtIn.candidates[0] ?? appStore[0] ?? favicon[0] ?? null
+        const best = builtIn.candidates[0] ?? theSvg[0] ?? appStore[0] ?? favicon[0] ?? null
 
         results.push({
             id: item.id,
             query,
             builtIn: builtIn.candidates.slice(0, parsed.limit),
             appStore: appStore.slice(0, parsed.limit),
-            appStoreStatus,
+            appStoreStatus: apple?.status,
+            theSvg: theSvg.slice(0, parsed.limit),
+            theSvgStatus: svg?.status,
             favicon: favicon.slice(0, parsed.limit),
             best,
         })
@@ -113,14 +135,25 @@ export function parseCandidateRequest(input: Record<string, unknown>): ParsedCan
 
     const limit = Number.isFinite(Number(input.limit)) ? Math.min(Math.max(Math.trunc(Number(input.limit)), 1), 32) : 32
     const items = input.items.map(parseCandidateItem)
-    const source = input.onlineIconSources && typeof input.onlineIconSources === 'object'
-        ? (input.onlineIconSources as Record<string, unknown>).appStore
-        : undefined
+    const sources = input.onlineIconSources && typeof input.onlineIconSources === 'object'
+        ? input.onlineIconSources as Record<string, unknown>
+        : {}
+    const source = sources.appStore
     const appStoreInput = source && typeof source === 'object' ? source as Record<string, unknown> : {}
     const enabled = appStoreInput.enabled === true
     const storefronts = parseStorefronts(appStoreInput.storefronts)
 
-    return { kind, mode, items, limit, appStore: { enabled, storefronts } }
+    const theSvgInput = sources.theSvg && typeof sources.theSvg === 'object'
+        ? sources.theSvg as Record<string, unknown>
+        : {}
+    return {
+        kind,
+        mode,
+        items,
+        limit,
+        appStore: { enabled, storefronts },
+        theSvg: { enabled: theSvgInput.enabled === true },
+    }
 }
 
 export function normalizeBrandName(value: string): string {
@@ -245,11 +278,6 @@ function parseStorefronts(value: unknown): AppStoreStorefront[] {
     return storefronts.length ? storefronts : [...DEFAULT_STOREFRONTS]
 }
 
-function shouldSearchAppStore(request: ParsedCandidateRequest): boolean {
-    return request.kind === 'logo' && request.mode === 'search' && request.items.length === 1 &&
-        request.appStore.enabled
-}
-
 function builtInCandidates(item: MediaCandidateRequestItem): { candidates: MediaCandidate[]; matchedQuery?: string } {
     const query = brandQuery(item)
     return { candidates: [], matchedQuery: query || undefined }
@@ -319,6 +347,130 @@ function artworkUrl(result: AppleResult): string | undefined {
             // Try the next artwork size.
         }
     }
+}
+
+export function rankTheSvgResults(icons: TheSvgIcon[], query: string): MediaCandidate[] {
+    const ranked = icons.map((icon, order) => ({
+        icon,
+        order,
+        score: scoreBrandMatch(query, icon.title, icon.slug, ...(icon.aliases ?? [])),
+    })).filter((entry) => entry.score >= 0.7)
+    ranked.sort((left, right) => right.score - left.score || left.order - right.order)
+
+    const candidates: MediaCandidate[] = []
+    const urls = new Set<string>()
+    for (const { icon } of ranked) {
+        if (!/^[a-z0-9][a-z0-9-]{0,127}$/.test(icon.slug)) continue
+        for (const variant of ['default', 'color', 'dark', 'light', 'mono']) {
+            const path = icon.variants[variant]
+            // Use the manifest path: default can point to color.svg or mono.svg.
+            if (typeof path !== 'string' || !path.startsWith(`/icons/${icon.slug}/`)) continue
+            if (!/^\/icons\/[a-z0-9-]+\/[a-zA-Z0-9-]+\.svg$/.test(path)) continue
+            const url = `${THESVG_BASE}/public${path}`
+            if (urls.has(url)) continue
+            urls.add(url)
+            candidates.push({
+                id: `theSvg:${icon.slug}:${variant}`,
+                source: 'theSvg',
+                name: icon.title,
+                subtitle: variant,
+                url,
+                autoAssignable: false,
+            })
+        }
+    }
+    return candidates
+}
+
+async function theSvgCandidates(
+    query: string,
+    ctx?: WaitUntil,
+): Promise<{ candidates: MediaCandidate[]; status: NonNullable<MediaCandidateResult['theSvgStatus']> }> {
+    try {
+        const candidates = rankTheSvgResults(await cachedTheSvgRegistry(ctx), query)
+        return { candidates, status: { state: candidates.length ? 'ok' : 'empty' } }
+    } catch (error) {
+        console.warn('the_svg_source_failed', {
+            kind: error instanceof Error ? error.name : 'Error',
+            message: error instanceof Error ? error.message : String(error),
+        })
+        return { candidates: [], status: { state: 'unavailable' } }
+    }
+}
+
+async function cachedTheSvgRegistry(ctx?: WaitUntil): Promise<TheSvgIcon[]> {
+    let cached = theSvgRegistry
+    if (!cached) {
+        try {
+            const cache = await mediaCache()
+            const response = await cache?.match(new Request(THESVG_CACHE_URL))
+            if (response) cached = await response.json() as CachedTheSvgRegistry
+        } catch {
+            // A cache failure must not prevent fetching the registry.
+        }
+    }
+    const age = cached ? Date.now() - cached.fetchedAt : Number.POSITIVE_INFINITY
+    if (cached && age <= FRESH_CACHE_MS) {
+        theSvgRegistry = cached
+        return cached.icons
+    }
+    if (cached && age <= STALE_CACHE_MS) {
+        theSvgRegistry = cached
+        const refresh = refreshTheSvgRegistry().catch(() => {})
+        if (ctx) ctx.waitUntil(refresh)
+        else await refresh
+        return cached.icons
+    }
+    return await refreshTheSvgRegistry()
+}
+
+async function refreshTheSvgRegistry(): Promise<TheSvgIcon[]> {
+    if (theSvgRequest) return theSvgRequest
+    theSvgRequest = fetchTheSvgRegistry().finally(() => {
+        theSvgRequest = undefined
+    })
+    return await theSvgRequest
+}
+
+async function fetchTheSvgRegistry(): Promise<TheSvgIcon[]> {
+    const response = await fetch(`${THESVG_BASE}/src/data/icons.json`, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(5000),
+        headers: { Accept: 'application/json' },
+    })
+    if (!response.ok) {
+        await response.body?.cancel()
+        throw new Error(`TheSVG returned ${response.status}`)
+    }
+    const data: unknown = JSON.parse(await readLimitedText(response, THESVG_BODY_BYTES))
+    if (!Array.isArray(data)) throw new Error('TheSVG returned an invalid registry')
+    const icons: TheSvgIcon[] = []
+    for (const entry of data) {
+        if (!entry || typeof entry !== 'object') continue
+        const icon = entry as Record<string, unknown>
+        if (typeof icon.slug !== 'string' || typeof icon.title !== 'string') continue
+        if (!icon.variants || typeof icon.variants !== 'object' || Array.isArray(icon.variants)) continue
+        icons.push({
+            slug: icon.slug,
+            title: icon.title,
+            aliases: Array.isArray(icon.aliases) ? icon.aliases.filter((alias) => typeof alias === 'string') : [],
+            variants: icon.variants as Record<string, string>,
+        })
+    }
+    if (!icons.length) throw new Error('TheSVG returned an invalid registry')
+    theSvgRegistry = { fetchedAt: Date.now(), icons }
+    try {
+        const cache = await mediaCache()
+        await cache?.put(
+            new Request(THESVG_CACHE_URL),
+            Response.json(theSvgRegistry, {
+                headers: { 'Cache-Control': `public, max-age=${STALE_CACHE_MS / 1000}` },
+            }),
+        )
+    } catch {
+        // Keep the in-memory registry when the edge cache is unavailable.
+    }
+    return icons
 }
 
 async function appStoreCandidates(
@@ -452,7 +604,7 @@ async function fetchStorefrontCandidates(
 async function appStoreCooldown(): Promise<number> {
     if (appStoreRetryAt <= Date.now()) appStoreRetryAt = 0
     try {
-        const cache = await appStoreCache()
+        const cache = await mediaCache()
         const response = await cache?.match(cacheRequest('retry-after'))
         if (response) {
             const data = await response.json() as { retryAt: number }
@@ -470,7 +622,7 @@ async function recordAppStoreCooldown(value: string | null): Promise<number> {
     appStoreRetryAt = Math.max(appStoreRetryAt, Date.now() + requestedRetryAfter * 1000)
     const retryAfter = Math.max(1, Math.ceil((appStoreRetryAt - Date.now()) / 1000))
     try {
-        const cache = await appStoreCache()
+        const cache = await mediaCache()
         await cache?.put(
             cacheRequest('retry-after'),
             Response.json({ retryAt: appStoreRetryAt }, {
@@ -486,7 +638,7 @@ async function recordAppStoreCooldown(value: string | null): Promise<number> {
 async function readLimitedText(response: Response, maximum: number): Promise<string> {
     if (Number(response.headers.get('Content-Length')) > maximum) {
         await response.body?.cancel()
-        throw new Error('Apple response is too large')
+        throw new Error('Media source response is too large')
     }
     if (!response.body) return ''
 
@@ -498,7 +650,7 @@ async function readLimitedText(response: Response, maximum: number): Promise<str
             const { done, value } = await reader.read()
             if (done) break
             size += value.byteLength
-            if (size > maximum) throw new Error('Apple response is too large')
+            if (size > maximum) throw new Error('Media source response is too large')
             chunks.push(value)
         }
     } finally {
@@ -516,7 +668,7 @@ async function readLimitedText(response: Response, maximum: number): Promise<str
 
 async function readAppStoreCache(key: string): Promise<CachedAppStoreResults | undefined> {
     try {
-        const cache = await appStoreCache()
+        const cache = await mediaCache()
         if (!cache) return
         const response = await cache.match(cacheRequest(key))
         if (!response) return
@@ -527,7 +679,7 @@ async function readAppStoreCache(key: string): Promise<CachedAppStoreResults | u
 }
 
 async function writeAppStoreCache(key: string, entries: RankedAppleResult[]): Promise<void> {
-    const cache = await appStoreCache()
+    const cache = await mediaCache()
     if (!cache) return
     const payload: CachedAppStoreResults = { fetchedAt: Date.now(), entries }
     await cache.put(
@@ -542,7 +694,7 @@ function cacheRequest(key: string): Request {
     return new Request(`${CACHE_BASE}/${encodeURIComponent(key)}`)
 }
 
-async function appStoreCache(): Promise<Cache | undefined> {
+async function mediaCache(): Promise<Cache | undefined> {
     try {
         return (globalThis as typeof globalThis & { caches?: { default?: Cache } }).caches?.default
     } catch {

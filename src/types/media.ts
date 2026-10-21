@@ -1,4 +1,4 @@
-export type MediaCandidateSource = 'builtIn' | 'appStore' | 'favicon'
+export type MediaCandidateSource = 'builtIn' | 'theSvg' | 'appStore' | 'favicon'
 export type AppStoreStorefront = 'us' | 'cn'
 
 export interface AppStoreIconSource {
@@ -8,6 +8,7 @@ export interface AppStoreIconSource {
 
 export interface OnlineIconSources {
     appStore: AppStoreIconSource
+    theSvg: { enabled: boolean }
 }
 
 export interface MediaCandidate {
@@ -39,6 +40,8 @@ export interface MediaCandidateResult {
     query: string
     builtIn: MediaCandidate[]
     appStore: MediaCandidate[]
+    theSvg?: MediaCandidate[]
+    theSvgStatus?: { state: 'ok' | 'empty' | 'unavailable' }
     appStoreStatus?: {
         state: 'ok' | 'empty' | 'partial' | 'rateLimited' | 'unavailable'
         retryAfter?: number

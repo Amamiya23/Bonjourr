@@ -505,6 +505,7 @@ function verifyDataAsSync(data: Partial<Sync> = {}): Sync {
         onlineIconSources: {
             ...SYNC_DEFAULT.onlineIconSources,
             ...data.onlineIconSources,
+            theSvg: { ...SYNC_DEFAULT.onlineIconSources.theSvg, ...data.onlineIconSources?.theSvg },
             appStore: {
                 ...appStore,
                 storefronts: storefronts.length

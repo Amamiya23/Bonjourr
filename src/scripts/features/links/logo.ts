@@ -18,7 +18,7 @@ const dompanel = document.getElementById('edit-logo') as HTMLDivElement
 const domiconurl = document.getElementById('e-icon-url') as HTMLInputElement
 const domicontype = document.getElementById('e-icon-type') as HTMLSelectElement
 
-let groups: LogoGroups = { builtIn: [], appStore: [], favicon: [] }
+let groups: LogoGroups = { builtIn: [], theSvg: [], appStore: [], favicon: [] }
 let bestId = ''
 let selectedId = ''
 let generation = 0
@@ -43,7 +43,7 @@ export function initLogoSearch(): void {
 
 export function prepareLogoSearch(title: string, website: string): void {
     generation++
-    groups = { builtIn: [], appStore: [], favicon: [] }
+    groups = { builtIn: [], theSvg: [], appStore: [], favicon: [] }
     bestId = ''
     selectedId = ''
     sourceStatus = ''
@@ -105,12 +105,18 @@ async function searchLogos(): Promise<void> {
 function setResults(result: MediaCandidateResult): void {
     groups = {
         builtIn: [...result.builtIn],
+        theSvg: [...(result.theSvg ?? [])],
         appStore: [...result.appStore],
         favicon: [...result.favicon],
     }
     bestId = result.best?.id ?? firstCandidate()?.id ?? ''
     selectedId = ''
-    sourceStatus = appStoreStatusMessage(result.appStoreStatus)
+    const theSvgMessage = result.theSvgStatus?.state === 'unavailable'
+        ? tradThis('Could not load TheSVG logos. Try again later.')
+        : result.theSvgStatus?.state === 'empty'
+        ? tradThis('No TheSVG logos found.')
+        : ''
+    sourceStatus = [theSvgMessage, appStoreStatusMessage(result.appStoreStatus)].filter(Boolean).join(' ')
     renderGroups()
     updateStatus()
 }
@@ -132,7 +138,7 @@ function renderGroups(): void {
     domresults.replaceChildren()
     const round = generation
 
-    for (const source of ['builtIn', 'appStore', 'favicon'] as const) {
+    for (const source of ['builtIn', 'theSvg', 'appStore', 'favicon'] as const) {
         const candidates = groups[source]
         if (!candidates.length) continue
         domresults.append(createGroup(source, candidates, round))
@@ -216,6 +222,9 @@ function removeBrokenCandidate(source: MediaCandidateSource, candidate: MediaCan
     if (source === 'appStore' && !groups.appStore.length) {
         sourceStatus = tradThis('Could not load App Store images. Check your connection.')
     }
+    if (source === 'theSvg' && !groups.theSvg.length) {
+        sourceStatus = tradThis('Could not load TheSVG images. Check your connection.')
+    }
     updateStatus()
 }
 
@@ -227,11 +236,12 @@ function updateBestHighlight(): void {
 }
 
 function firstCandidate(): MediaCandidate | undefined {
-    return groups.builtIn[0] ?? groups.appStore[0] ?? groups.favicon[0]
+    return groups.builtIn[0] ?? groups.theSvg[0] ?? groups.appStore[0] ?? groups.favicon[0]
 }
 
 function sourceName(source: MediaCandidateSource): string {
     if (source === 'builtIn') return tradThis('Built-in')
+    if (source === 'theSvg') return 'TheSVG'
     if (source === 'appStore') return 'App Store'
     return tradThis('Website favicon')
 }

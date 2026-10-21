@@ -13,7 +13,10 @@ const artwork = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
 const favicon = { id: 'favicon:gmail', source: 'favicon' as const, name: 'Gmail', url: artwork, autoAssignable: true }
 const app = { id: 'appStore:gmail', source: 'appStore' as const, name: 'Gmail', url: artwork, autoAssignable: false }
 
-async function showSearchResult(state: NonNullable<MediaCandidateResult['appStoreStatus']>['state']): Promise<void> {
+async function showSearchResult(
+    state: NonNullable<MediaCandidateResult['appStoreStatus']>['state'],
+    extra: Partial<MediaCandidateResult> = {},
+): Promise<void> {
     const originalFetch = globalThis.fetch
     const originalGet = storage.sync.get
     storage.sync.get = () => Promise.resolve(structuredClone(SYNC_DEFAULT))
@@ -27,6 +30,7 @@ async function showSearchResult(state: NonNullable<MediaCandidateResult['appStor
                 favicon: [favicon],
                 best: favicon,
                 appStoreStatus: { state },
+                ...extra,
             }],
         }))) as typeof fetch
     try {
@@ -64,4 +68,54 @@ Deno.test('A broken App Store image reports a loading problem rather than silent
         'Could not load App Store images. Check your connection.',
     )
     assertEquals(document.querySelectorAll('.logo-group-favicon .logo-candidate').length, 1)
+})
+
+Deno.test('TheSVG candidates can be selected and report broken images without removing other sources', async () => {
+    const svg = {
+        id: 'theSvg:gmail:default',
+        source: 'theSvg' as const,
+        name: 'Gmail',
+        url: artwork,
+        autoAssignable: false,
+    }
+    await showSearchResult('ok', { theSvg: [svg], theSvgStatus: { state: 'ok' }, best: svg })
+    const candidate = document.querySelector<HTMLButtonElement>('.logo-group-theSvg .logo-candidate')!
+    assertEquals(candidate.classList.contains('best'), true)
+    candidate.click()
+    assertEquals((document.getElementById('e-icon-url') as HTMLInputElement).value, artwork)
+    assertEquals((document.getElementById('e-icon-type') as HTMLSelectElement).value, 'url')
+    assertEquals(candidate.classList.contains('selected'), true)
+    candidate.querySelector('img')!.dispatchEvent(new Event('error'))
+    assertEquals(
+        document.getElementById('e-logo-status')!.textContent,
+        'Could not load TheSVG images. Check your connection.',
+    )
+    assertEquals(document.querySelectorAll('.logo-group-appStore .logo-candidate').length, 1)
+    assertEquals(document.querySelectorAll('.logo-group-favicon .logo-candidate').length, 1)
+})
+
+Deno.test('TheSVG errors remain visible alongside App Store errors', async () => {
+    await showSearchResult('unavailable', { theSvg: [], theSvgStatus: { state: 'unavailable' } })
+    assertEquals(
+        document.getElementById('e-logo-status')!.textContent,
+        'Could not load TheSVG logos. Try again later. Could not load App Store logos. Try again later.',
+    )
+})
+
+Deno.test('Older settings gain TheSVG defaults while preserving disabled sources', async () => {
+    const saved = localStorage.getItem('bonjourr')
+    storage.type.init()
+    try {
+        localStorage.bonjourr = JSON.stringify({
+            onlineIconSources: { appStore: { enabled: false, storefronts: ['cn'] } },
+        })
+        const migrated = await storage.sync.get()
+        assertEquals(migrated.onlineIconSources.theSvg.enabled, true)
+        assertEquals(migrated.onlineIconSources.appStore, { enabled: false, storefronts: ['cn'] })
+        await storage.sync.set({ onlineIconSources: { ...migrated.onlineIconSources, theSvg: { enabled: false } } })
+        assertEquals((await storage.sync.get()).onlineIconSources.theSvg.enabled, false)
+    } finally {
+        if (saved === null) localStorage.removeItem('bonjourr')
+        else localStorage.setItem('bonjourr', saved)
+    }
 })

@@ -113,6 +113,7 @@ export const SYNC_DEFAULT: Sync = {
     linksrow: 8,
     linkiconradius: 1.1,
     onlineIconSources: {
+        theSvg: { enabled: true },
         appStore: {
             enabled: true,
             storefronts: ['us', 'cn'],

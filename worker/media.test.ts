@@ -5,6 +5,7 @@ import {
     normalizeBrandName,
     parseCandidateRequest,
     rankAppleResults,
+    rankTheSvgResults,
     scoreBrandMatch,
 } from './media.ts'
 import { HttpError } from './http.ts'
@@ -373,6 +374,173 @@ Deno.test('A failed refresh retains stale Gmail artwork', async () => {
                 const result = await searchAppStore('Gmail')
                 assertEquals(result.appStore.length, 1)
                 assertEquals(result.appStoreStatus, { state: 'ok' })
+                assertEquals(requests, 2)
+            },
+        )
+    } finally {
+        Date.now = originalNow
+    }
+})
+
+const svgRegistry = [
+    { slug: 'gmail-tools', title: 'Gmail Tools', variants: { default: '/icons/gmail-tools/default.svg' } },
+    {
+        slug: 'gmail',
+        title: 'Gmail',
+        aliases: ['Google Mail', '谷歌邮箱'],
+        variants: {
+            default: '/icons/gmail/color.svg',
+            color: '/icons/gmail/color.svg',
+            mono: '/icons/gmail/mono.svg',
+            light: 'https://example.com/untrusted.svg',
+            dark: '/icons/gmail/../../untrusted.svg',
+        },
+    },
+    { slug: 'unrelated', title: 'Unrelated', variants: { default: '/icons/unrelated/default.svg' } },
+]
+
+Deno.test('TheSVG ranks names and aliases, deduplicates variants and restricts image paths', () => {
+    const ranked = rankTheSvgResults(svgRegistry, 'Gmail')
+    assertEquals(ranked.map((item) => item.id), [
+        'theSvg:gmail:default',
+        'theSvg:gmail:mono',
+        'theSvg:gmail-tools:default',
+    ])
+    assertEquals(ranked[0].url, 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/gmail/color.svg')
+    assertEquals(ranked[0].autoAssignable, false)
+    assertEquals(rankTheSvgResults(svgRegistry, '谷歌邮箱').map((item) => item.name), ['Gmail', 'Gmail'])
+    assertEquals(rankTheSvgResults(svgRegistry, 'Google Mail').length, 2)
+})
+
+function svgSearchRequest(overrides: Record<string, unknown> = {}): Request {
+    return new Request('https://example.com/api/app/media/candidates', {
+        method: 'POST',
+        body: JSON.stringify({
+            kind: 'logo',
+            mode: 'search',
+            items: [{ id: 'search', name: 'Gmail', website: 'https://mail.google.com/' }],
+            onlineIconSources: { theSvg: { enabled: true }, appStore: { enabled: true, storefronts: ['us'] } },
+            ...overrides,
+        }),
+    })
+}
+
+Deno.test('TheSVG caches the registry across queries and workers while keeping App Store results', async () => {
+    const first = await import('./media.ts?thesvg-first')
+    const second = await import('./media.ts?thesvg-second')
+    let registryRequests = 0
+    await withAppStoreMock(
+        ((input: string | URL | Request, init?: RequestInit) => {
+            if (String(input).includes('/src/data/icons.json')) {
+                assertEquals(init?.redirect, 'manual')
+                registryRequests++
+                return Promise.resolve(Response.json(svgRegistry))
+            }
+            return Promise.resolve(Response.json({ results: [gmailResult] }))
+        }) as typeof fetch,
+        async () => {
+            const result =
+                (await (await first.mediaCandidates(svgSearchRequest({ limit: 1 }))).json() as MediaCandidatesResponse)
+                    .items[0]
+            assertEquals(result.theSvg?.length, 1)
+            assertEquals(result.appStore.length, 1)
+            assertEquals(result.theSvgStatus, { state: 'ok' })
+            assertEquals(result.best?.source, 'theSvg')
+            const request = svgSearchRequest({
+                items: [{ id: 'another', name: 'Google Mail', website: 'https://mail.google.com/' }],
+            })
+            await second.mediaCandidates(request)
+            assertEquals(registryRequests, 1)
+        },
+    )
+})
+
+Deno.test('TheSVG failures preserve App Store results, retry invalid responses, and distinguish empty searches', async () => {
+    const worker = await import('./media.ts?thesvg-retry')
+    let registryRequests = 0
+    await withAppStoreMock(
+        ((input: string | URL | Request) => {
+            if (String(input).includes('/src/data/icons.json')) {
+                registryRequests++
+                return Promise.resolve(Response.json(registryRequests === 1 ? {} : svgRegistry))
+            }
+            return Promise.resolve(Response.json({ results: [gmailResult] }))
+        }) as typeof fetch,
+        async () => {
+            const failed =
+                (await (await worker.mediaCandidates(svgSearchRequest())).json() as MediaCandidatesResponse).items[0]
+            assertEquals(failed.theSvgStatus, { state: 'unavailable' })
+            assertEquals(failed.appStore.length, 1)
+            assertEquals(failed.favicon.length, 1)
+            const recovered =
+                (await (await worker.mediaCandidates(svgSearchRequest())).json() as MediaCandidatesResponse).items[0]
+            assertEquals(recovered.theSvgStatus, { state: 'ok' })
+            const emptyRequest = svgSearchRequest({
+                items: [{ id: 'empty', name: 'No such brand', website: 'https://example.com/' }],
+            })
+            const empty =
+                (await (await worker.mediaCandidates(emptyRequest)).json() as MediaCandidatesResponse).items[0]
+            assertEquals(empty.theSvgStatus, { state: 'empty' })
+            assertEquals(registryRequests, 2)
+        },
+    )
+})
+
+Deno.test('TheSVG does not fetch when disabled or during automatic, icon or batch requests', async () => {
+    const worker = await import('./media.ts?thesvg-disabled')
+    let requests = 0
+    await withAppStoreMock(
+        (() => {
+            requests++
+            return Promise.reject(new Error('Unexpected fetch'))
+        }) as typeof fetch,
+        async () => {
+            for (
+                const overrides of [
+                    { onlineIconSources: { theSvg: { enabled: false } } },
+                    { mode: 'auto' },
+                    { kind: 'icon' },
+                    {
+                        items: [{ id: 'one', website: 'https://example.com/' }, {
+                            id: 'two',
+                            website: 'https://gmail.com/',
+                        }],
+                    },
+                ]
+            ) {
+                const result = (await (await worker.mediaCandidates(svgSearchRequest(overrides)))
+                    .json() as MediaCandidatesResponse).items[0]
+                assertEquals(result.theSvg, [])
+                assertEquals(result.theSvgStatus, undefined)
+            }
+            assertEquals(requests, 0)
+        },
+    )
+})
+
+Deno.test('A failed TheSVG refresh preserves the stale registry', async () => {
+    const worker = await import('./media.ts?thesvg-stale')
+    const originalNow = Date.now
+    let now = originalNow()
+    let requests = 0
+    Date.now = () => now
+    try {
+        await withAppStoreMock(
+            (() => {
+                requests++
+                return requests === 1
+                    ? Promise.resolve(Response.json(svgRegistry))
+                    : Promise.reject(new Error('Offline'))
+            }) as typeof fetch,
+            async () => {
+                const options = { onlineIconSources: { theSvg: { enabled: true } } }
+                await worker.mediaCandidates(svgSearchRequest(options))
+                now += 25 * 60 * 60 * 1000
+                const stale =
+                    (await (await worker.mediaCandidates(svgSearchRequest(options))).json() as MediaCandidatesResponse)
+                        .items[0]
+                assertEquals(stale.theSvgStatus, { state: 'ok' })
+                assertEquals(stale.theSvg?.length, 3)
                 assertEquals(requests, 2)
             },
         )

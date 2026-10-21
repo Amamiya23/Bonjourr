@@ -330,6 +330,7 @@ function initOptionsValues(data: Sync, local: Local): void {
     setCheckbox('i_showall', data.showall)
     setCheckbox('i_settingshide', data.hide?.settingsicon ?? false)
     setCheckbox('i_appstore_icons', data.onlineIconSources.appStore.enabled)
+    setCheckbox('i_thesvg_icons', data.onlineIconSources.theSvg.enabled)
     setCheckbox('i_appstore_us', data.onlineIconSources.appStore.storefronts.includes('us'))
     setCheckbox('i_appstore_cn', data.onlineIconSources.appStore.storefronts.includes('cn'))
     setCheckbox('i_background-mute-videos', data.backgrounds.mute ?? true)
@@ -563,6 +564,12 @@ function initOptionsEvents(): void {
     onclickdown(paramId('i_appstore_icons'), async (_, target) => {
         toggleSettingsDropdown('appstore_options', target.checked)
         await saveAppStoreSource(target.checked)
+    })
+
+    onclickdown(paramId('i_thesvg_icons'), async (_, target) => {
+        const data = await storage.sync.get()
+        data.onlineIconSources.theSvg = { enabled: target.checked }
+        await storage.sync.set(data)
     })
 
     paramId('i_appstore_us').addEventListener('change', saveAppStoreStorefronts)
