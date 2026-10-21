@@ -114,7 +114,7 @@ export const SYNC_DEFAULT: Sync = {
     linkiconradius: 1.1,
     onlineIconSources: {
         appStore: {
-            enabled: false,
+            enabled: true,
             storefronts: ['us', 'cn'],
         },
     },
