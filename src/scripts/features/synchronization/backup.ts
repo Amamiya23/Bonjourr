@@ -379,7 +379,8 @@ function validateSettings(value: unknown): Sync {
         throw new Error('备份格式无效或版本不受支持。')
     }
 
-    for (const [key, val] of Object.entries(value)) {
+    const settings = portableSettings(value as unknown as Sync)
+    for (const [key, val] of Object.entries(settings)) {
         const defaultValue = SYNC_DEFAULT[key]
         if (
             defaultValue !== undefined && val !== undefined &&
@@ -389,7 +390,7 @@ function validateSettings(value: unknown): Sync {
         }
     }
 
-    return portableSettings(value as unknown as Sync)
+    return settings
 }
 
 function pickBackupLocal(value: Record<string, unknown> | BackupLocal): BackupLocal {
@@ -487,6 +488,11 @@ async function applySyncSettings(settings: Sync): Promise<void> {
 function portableSettings(data: Sync): Sync {
     const result: Record<string, unknown> = {}
     for (const key of Object.keys(SYNC_DEFAULT)) if (key in data) result[key] = data[key]
+    // Older versions saved the links-per-row slider's string value directly.
+    if (typeof result.linksrow === 'string' && /^\d+$/.test(result.linksrow)) {
+        const rows = Number(result.linksrow)
+        if (Number.isSafeInteger(rows) && rows > 0) result.linksrow = rows
+    }
     for (const [key, value] of Object.entries(data)) {
         if (value && typeof value === 'object' && '_id' in value && value._id === key) result[key] = value
     }

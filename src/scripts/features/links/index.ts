@@ -980,7 +980,7 @@ function setRows(row: string): void {
     const style = [...domlinkblocks.classList].filter(isLinkStyle)[0] ?? 'large'
     const val = Number.parseInt(row ?? '8')
     initRows(val, style)
-    eventDebounce({ linksrow: row })
+    eventDebounce({ linksrow: val })
 }
 
 // Helpers

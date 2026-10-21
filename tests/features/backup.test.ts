@@ -1,4 +1,4 @@
-import { assertEquals } from '@std/assert'
+import { assertEquals, assertThrows } from '@std/assert'
 import '../init.ts'
 import { SYNC_DEFAULT } from '../../src/scripts/defaults.ts'
 import { storage } from '../../src/scripts/storage.ts'
@@ -13,6 +13,47 @@ import type { Backup } from '../../src/scripts/features/synchronization/backup.t
 
 localStorage.bonjourr = JSON.stringify(SYNC_DEFAULT)
 await storage.init()
+
+Deno.test('Backups accept legacy string-valued links per row across backup versions', () => {
+    for (const version of [1, 2, 3]) {
+        for (const rows of ['1', '8', '16', 8]) {
+            const backup = parseBackup(JSON.stringify({
+                format: 'bonjourr-webdav',
+                version,
+                createdAt: '2026-10-21T00:00:00.000Z',
+                settings: { ...SYNC_DEFAULT, linksrow: rows },
+                local: { backgroundFiles: {}, backgroundUrls: {}, icons: {} },
+                assets: [],
+                icons: [],
+            }))
+            assertEquals(backup.settings.linksrow, Number(rows))
+        }
+    }
+})
+
+Deno.test('Backups still reject invalid links per row and other mismatched settings', () => {
+    for (
+        const settings of [
+            ...['', '0', '8px', '8.5', '9007199254740992', null, true, [], {}].map((linksrow) => ({ linksrow })),
+            { pagewidth: '80' },
+        ]
+    ) {
+        assertThrows(
+            () =>
+                parseBackup(JSON.stringify({
+                    format: 'bonjourr-webdav',
+                    version: 3,
+                    createdAt: '2026-10-21T00:00:00.000Z',
+                    settings: { ...SYNC_DEFAULT, ...settings },
+                    local: { backgroundFiles: {}, backgroundUrls: {} },
+                    assets: [],
+                    icons: [],
+                })),
+            Error,
+            `备份中的 ${'linksrow' in settings ? 'linksrow' : 'pagewidth'} 类型无效。`,
+        )
+    }
+})
 
 Deno.test('Full backups keep every persistent value and reference media outside the manifest', async () => {
     const original = globalThis.caches
@@ -37,6 +78,7 @@ Deno.test('Full backups keep every persistent value and reference media outside 
     } as unknown as CacheStorage
     Object.defineProperty(globalThis, 'caches', { configurable: true, value: fakeCaches })
     try {
+        localStorage.bonjourr = JSON.stringify({ ...SYNC_DEFAULT, linksrow: '6' })
         await storage.local.set({
             weatherApiKey: 'uapi-private-test',
             weatherApiOrigin: 'https://uapis.cn',
@@ -64,6 +106,7 @@ Deno.test('Full backups keep every persistent value and reference media outside 
 
         const backup = await createBackup()
         assertEquals(backup.version, 3)
+        assertEquals(backup.settings.linksrow, 6)
         assertEquals(backup.assets.length, 2)
         assertEquals(backup.assets.some((asset) => 'data' in asset), false)
         assertEquals(backup.icons, [{

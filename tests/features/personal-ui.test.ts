@@ -28,6 +28,24 @@ loadCallbacks()
 const flush = () => new Promise((resolve) => setTimeout(resolve, 30))
 
 Deno.test({
+    name: 'Links per row changes are saved as numbers for WebDAV backups',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const originalRows = (await storage.sync.get()).linksrow
+        try {
+            await quickLinks(undefined, { row: '6' })
+            await new Promise((resolve) => setTimeout(resolve, 450))
+            assertEquals((await storage.sync.get()).linksrow, 6)
+            assertEquals(document.getElementById('interface')?.style.getPropertyValue('--links-columns'), '6')
+        } finally {
+            await quickLinks(undefined, { row: String(originalRows) })
+            await new Promise((resolve) => setTimeout(resolve, 450))
+        }
+    },
+})
+
+Deno.test({
     name: 'Application pages can be created without changing time, weather or search',
     sanitizeOps: false,
     sanitizeResources: false,
