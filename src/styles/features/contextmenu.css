@@ -4,6 +4,13 @@ dialog#contextmenu {
     top: 0;
     opacity: 0;
     width: 300px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    box-sizing: border-box;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    touch-action: pan-y;
     padding: 6px;
     margin: 0;
     z-index: 4;
@@ -207,10 +214,24 @@ dialog#contextmenu .logo-search-status {
 dialog#contextmenu .logo-results {
     display: grid;
     gap: 10px;
-    max-height: min(320px, 48vh);
     padding: 2px 2px 4px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+}
+
+dialog#contextmenu .edit-actions {
+    display: none;
+    margin-top: 8px;
+    padding-block: 4px;
+}
+
+dialog#contextmenu .edit-actions:has(> button.on) {
+    display: block;
+}
+
+@media (pointer: coarse) {
+    dialog#contextmenu .edit-actions button.on,
+    dialog#contextmenu .logo-search-input button {
+        min-height: 44px;
+    }
 }
 
 dialog#contextmenu .logo-group h3 {
@@ -282,7 +303,7 @@ dialog#contextmenu .logo-candidate-name {
 
 @media only screen and (max-width: 340px) {
     dialog#contextmenu {
-        width: calc(100vw - 12px);
+        width: calc(100vw - 16px);
     }
 }
 

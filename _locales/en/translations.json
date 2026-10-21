@@ -49,6 +49,11 @@
     "Enter a logo name first": "Enter a logo name first",
     "Built-in": "Built-in",
     "App Store logos": "App Store logos",
+    "App Store is temporarily rate limited. Try again later.": "App Store is temporarily rate limited. Try again later.",
+    "Could not load App Store logos. Try again later.": "Could not load App Store logos. Try again later.",
+    "Some App Store regions could not be searched. Try again later.": "Some App Store regions could not be searched. Try again later.",
+    "No App Store logos found.": "No App Store logos found.",
+    "Could not load App Store images. Check your connection.": "Could not load App Store images. Check your connection.",
     "Regions": "Regions",
 
     "Add new link": "Add new link",

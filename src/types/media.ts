@@ -39,6 +39,10 @@ export interface MediaCandidateResult {
     query: string
     builtIn: MediaCandidate[]
     appStore: MediaCandidate[]
+    appStoreStatus?: {
+        state: 'ok' | 'empty' | 'partial' | 'rateLimited' | 'unavailable'
+        retryAfter?: number
+    }
     favicon: MediaCandidate[]
     best: MediaCandidate | null
 }

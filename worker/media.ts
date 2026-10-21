@@ -8,7 +8,7 @@ import type {
 } from '../src/types/media.ts'
 
 const APPLE_SEARCH_URL = 'https://itunes.apple.com/search'
-const APPLE_TIMEOUT_MS = 2000
+const APPLE_TIMEOUT_MS = 5000
 const APPLE_BODY_BYTES = 256 * 1024
 const REQUEST_BODY_BYTES = 32 * 1024
 const FRESH_CACHE_MS = 24 * 60 * 60 * 1000
@@ -58,6 +58,13 @@ interface WaitUntil {
 }
 
 const appStoreRequests = new Map<string, Promise<RankedAppleResult[]>>()
+let appStoreRetryAt = 0
+
+class AppStoreRateLimitError extends Error {
+    constructor(readonly retryAfter: number) {
+        super('Apple search is rate limited')
+    }
+}
 
 export async function mediaCandidates(request: Request, ctx?: WaitUntil): Promise<Response> {
     const parsed = parseCandidateRequest(await bodyJson(request, REQUEST_BODY_BYTES))
@@ -67,11 +74,14 @@ export async function mediaCandidates(request: Request, ctx?: WaitUntil): Promis
         const builtIn = builtInCandidates(item)
         const query = builtIn.matchedQuery ?? brandQuery(item)
         let appStore: MediaCandidate[] = []
+        let appStoreStatus: MediaCandidateResult['appStoreStatus']
         if (shouldSearchAppStore(parsed) && query) {
             try {
-                appStore = await appStoreCandidates(query, parsed.appStore.storefronts, ctx)
+                const source = await appStoreCandidates(query, parsed.appStore.storefronts, ctx)
+                appStore = source.candidates
+                appStoreStatus = source.status
             } catch {
-                // App Store is an optional source; keep built-in and favicon candidates available.
+                appStoreStatus = { state: 'unavailable' }
             }
         }
         const favicon = faviconCandidates(item)
@@ -82,13 +92,14 @@ export async function mediaCandidates(request: Request, ctx?: WaitUntil): Promis
             query,
             builtIn: builtIn.candidates.slice(0, parsed.limit),
             appStore: appStore.slice(0, parsed.limit),
+            appStoreStatus,
             favicon: favicon.slice(0, parsed.limit),
             best,
         })
     }
 
     const response: MediaCandidatesResponse = { items: results }
-    return Response.json(response)
+    return Response.json(response, { headers: { 'Cache-Control': 'no-store' } })
 }
 
 export function parseCandidateRequest(input: Record<string, unknown>): ParsedCandidateRequest {
@@ -314,20 +325,27 @@ async function appStoreCandidates(
     query: string,
     storefronts: AppStoreStorefront[],
     ctx?: WaitUntil,
-): Promise<MediaCandidate[]> {
-    const all = await Promise.all(storefronts.map(async (storefront) => {
-        try {
-            return await cachedStorefrontCandidates(query, storefront, ctx)
-        } catch {
-            return []
-        }
-    }))
-    const ranked = all.flat().sort((left, right) =>
+): Promise<{ candidates: MediaCandidate[]; status: NonNullable<MediaCandidateResult['appStoreStatus']> }> {
+    const all = await Promise.allSettled(
+        storefronts.map((storefront) => cachedStorefrontCandidates(query, storefront, ctx)),
+    )
+    const ranked = all.flatMap((result) => result.status === 'fulfilled' ? result.value : []).sort((left, right) =>
         right.score - left.score ||
         storefrontOrder(left.storefront) - storefrontOrder(right.storefront) ||
         left.order - right.order
     )
-    return deduplicateRankedAppleResults(ranked)
+    const candidates = deduplicateRankedAppleResults(ranked)
+    const errors = all.flatMap((result) => result.status === 'rejected' ? [result.reason] : [])
+    const retryAfter = Math.max(
+        0,
+        ...errors.map((error) => error instanceof AppStoreRateLimitError ? error.retryAfter : 0),
+    )
+    let state: NonNullable<MediaCandidateResult['appStoreStatus']>['state'] = candidates.length ? 'ok' : 'empty'
+    if (errors.length) {
+        state = candidates.length ? 'partial' : 'unavailable'
+        if (!candidates.length && retryAfter) state = 'rateLimited'
+    }
+    return { candidates, status: { state, ...(retryAfter ? { retryAfter } : {}) } }
 }
 
 async function cachedStorefrontCandidates(
@@ -342,7 +360,7 @@ async function cachedStorefrontCandidates(
     if (cached && age <= FRESH_CACHE_MS) return cached.entries
 
     if (cached && age <= STALE_CACHE_MS) {
-        const refresh = refreshStorefrontCandidates(query, storefront)
+        const refresh = refreshStorefrontCandidates(query, storefront).catch(() => {})
         if (ctx) ctx.waitUntil(refresh)
         else await refresh
         return cached.entries
@@ -374,8 +392,9 @@ async function refreshStorefrontCandidates(
                 query,
                 kind: error instanceof Error ? error.name : 'Error',
                 message: error instanceof Error ? error.message : String(error),
+                ...(error instanceof AppStoreRateLimitError ? { status: 429, retryAfter: error.retryAfter } : {}),
             })
-            return []
+            throw error
         })
         .finally(() => appStoreRequests.delete(key))
 
@@ -387,6 +406,9 @@ async function fetchStorefrontCandidates(
     query: string,
     storefront: AppStoreStorefront,
 ): Promise<RankedAppleResult[]> {
+    const retryAfter = await appStoreCooldown()
+    if (retryAfter) throw new AppStoreRateLimitError(retryAfter)
+
     const url = new URL(APPLE_SEARCH_URL)
     url.search = new URLSearchParams({
         term: query,
@@ -401,6 +423,11 @@ async function fetchStorefrontCandidates(
         signal: AbortSignal.timeout(APPLE_TIMEOUT_MS),
         headers: { Accept: 'application/json' },
     })
+    if (response.status === 429) {
+        const retryAfter = await recordAppStoreCooldown(response.headers.get('Retry-After'))
+        await response.body?.cancel()
+        throw new AppStoreRateLimitError(retryAfter)
+    }
     if (response.status >= 300 && response.status < 400) {
         await response.body?.cancel()
         throw new Error(`Apple returned redirect ${response.status}`)
@@ -411,7 +438,7 @@ async function fetchStorefrontCandidates(
     }
 
     const data = JSON.parse(await readLimitedText(response, APPLE_BODY_BYTES)) as { results?: unknown }
-    if (!Array.isArray(data.results)) return []
+    if (!Array.isArray(data.results)) throw new Error('Apple returned an invalid search response')
     return rankAppleEntries(
         data.results.slice(0, 3).map((result, order) => ({
             result: result as AppleResult,
@@ -420,6 +447,40 @@ async function fetchStorefrontCandidates(
         })),
         query,
     )
+}
+
+async function appStoreCooldown(): Promise<number> {
+    if (appStoreRetryAt <= Date.now()) appStoreRetryAt = 0
+    try {
+        const cache = await appStoreCache()
+        const response = await cache?.match(cacheRequest('retry-after'))
+        if (response) {
+            const data = await response.json() as { retryAt: number }
+            if (Number.isFinite(data.retryAt)) appStoreRetryAt = Math.max(appStoreRetryAt, data.retryAt)
+        }
+    } catch {
+        // Keep the in-memory cooldown if the edge cache is unavailable.
+    }
+    return Math.max(0, Math.ceil((appStoreRetryAt - Date.now()) / 1000))
+}
+
+async function recordAppStoreCooldown(value: string | null): Promise<number> {
+    const seconds = value === null ? 60 : /^\d+$/.test(value) ? Number(value) : (Date.parse(value) - Date.now()) / 1000
+    const requestedRetryAfter = Number.isFinite(seconds) ? Math.max(1, Math.ceil(seconds)) : 60
+    appStoreRetryAt = Math.max(appStoreRetryAt, Date.now() + requestedRetryAfter * 1000)
+    const retryAfter = Math.max(1, Math.ceil((appStoreRetryAt - Date.now()) / 1000))
+    try {
+        const cache = await appStoreCache()
+        await cache?.put(
+            cacheRequest('retry-after'),
+            Response.json({ retryAt: appStoreRetryAt }, {
+                headers: { 'Cache-Control': `public, max-age=${retryAfter}` },
+            }),
+        )
+    } catch {
+        // Requests in this Worker still respect the in-memory cooldown.
+    }
+    return retryAfter
 }
 
 async function readLimitedText(response: Response, maximum: number): Promise<string> {

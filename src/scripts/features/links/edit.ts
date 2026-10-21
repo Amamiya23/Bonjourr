@@ -342,7 +342,7 @@ function toggleIconType(iconType: Event | string): void {
     document.getElementById('edit-icon-url')?.classList.toggle('on', iconType === 'url')
     document.getElementById('edit-icon-svg')?.classList.toggle('on', iconType === 'svg')
     document.getElementById('edit-icon-file')?.classList.toggle('on', iconType === 'file')
-    setLogoSearchVisible(iconType === 'auto' || iconType === 'url')
+    setLogoSearchVisible(iconType === 'auto' || iconType === 'url' || iconType === 'file')
 }
 
 function submitChanges(event: SubmitEvent): void {

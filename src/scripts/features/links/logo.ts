@@ -23,6 +23,7 @@ let bestId = ''
 let selectedId = ''
 let generation = 0
 let eventsReady = false
+let sourceStatus = ''
 
 export function initLogoSearch(): void {
     if (eventsReady) return
@@ -45,6 +46,7 @@ export function prepareLogoSearch(title: string, website: string): void {
     groups = { builtIn: [], appStore: [], favicon: [] }
     bestId = ''
     selectedId = ''
+    sourceStatus = ''
     domquery.value = title.trim() || brandFromWebsite(website)
     domstatus.textContent = ''
     domresults.replaceChildren()
@@ -63,6 +65,7 @@ async function searchLogos(): Promise<void> {
     }
 
     const current = ++generation
+    sourceStatus = ''
     domstatus.textContent = tradThis('Searching logos')
     domresults.replaceChildren()
 
@@ -107,10 +110,22 @@ function setResults(result: MediaCandidateResult): void {
     }
     bestId = result.best?.id ?? firstCandidate()?.id ?? ''
     selectedId = ''
+    sourceStatus = appStoreStatusMessage(result.appStoreStatus)
     renderGroups()
+    updateStatus()
+}
 
+function appStoreStatusMessage(status: MediaCandidateResult['appStoreStatus']): string {
+    if (status?.state === 'rateLimited') return tradThis('App Store is temporarily rate limited. Try again later.')
+    if (status?.state === 'unavailable') return tradThis('Could not load App Store logos. Try again later.')
+    if (status?.state === 'partial') return tradThis('Some App Store regions could not be searched. Try again later.')
+    if (status?.state === 'empty') return tradThis('No App Store logos found.')
+    return ''
+}
+
+function updateStatus(): void {
     const count = Object.values(groups).flat().length
-    domstatus.textContent = count ? '' : tradThis('No logos found')
+    domstatus.textContent = sourceStatus || (count ? '' : tradThis('No logos found'))
 }
 
 function renderGroups(): void {
@@ -198,7 +213,10 @@ function removeBrokenCandidate(source: MediaCandidateSource, candidate: MediaCan
     const best = firstCandidate()
     bestId = best?.id ?? ''
     updateBestHighlight()
-    if (!bestId) domstatus.textContent = tradThis('No logos found')
+    if (source === 'appStore' && !groups.appStore.length) {
+        sourceStatus = tradThis('Could not load App Store images. Check your connection.')
+    }
+    updateStatus()
 }
 
 function updateBestHighlight(): void {

@@ -48,6 +48,7 @@ const mainInterface = document.getElementById('interface') as HTMLDivElement
 const domdialog = document.getElementById('contextmenu') as HTMLDialogElement
 
 let eventLocation: EventLocation
+let menuAnchor = { x: 0, y: 0 }
 
 export function openContextMenu(event: Event): void {
     const selection = globalThis.getSelection() // imperfect selected text detection to allow for OS context menu
@@ -85,6 +86,7 @@ export function openContextMenu(event: Event): void {
     }
 
     // hides/resets content from previous context menu
+    domdialog.scrollTop = 0
     for (const node of domdialog.querySelectorAll('label, button, hr, #background-actions, input')) {
         node.classList.remove('on')
 
@@ -161,22 +163,20 @@ export function positionContextMenu(event: Event): void {
     const withKeyboard = event.type === 'keyup' && (event as KeyboardEvent)?.key === 'e'
     const { innerHeight, innerWidth } = window
     const isMobileSized = innerWidth < 600
-    const docLang = document.documentElement.lang
-    const rightToLeft = docLang === 'ar' || docLang === 'fa' || docLang === 'he'
 
     let x = 0
     let y = 0
 
     if (withPointer && isMobileSized) {
         x = (innerWidth - editRects.width) / 2
-        y = (event.type === 'touchstart' ? (event as TouchEvent).touches[0].clientY : (event as PointerEvent).y) -
+        y = (event.type === 'touchstart' ? (event as TouchEvent).touches[0].clientY : (event as PointerEvent).clientY) -
             60 -
             editRects.height
     } //
     else if (withPointer) {
         // gets coordinates differently from touchstart or contextmenu
-        x = event.type === 'touchstart' ? (event as TouchEvent).touches[0].clientX : (event as PointerEvent).x
-        y = event.type === 'touchstart' ? (event as TouchEvent).touches[0].clientY : (event as PointerEvent).y
+        x = event.type === 'touchstart' ? (event as TouchEvent).touches[0].clientX : (event as PointerEvent).clientX
+        y = event.type === 'touchstart' ? (event as TouchEvent).touches[0].clientY : (event as PointerEvent).clientY
     } //
     else if (withKeyboard) {
         const targetEl = event.target as HTMLElement
@@ -186,21 +186,25 @@ export function positionContextMenu(event: Event): void {
         y = rect.bottom + 4
     }
 
-    const w = editRects.width
-    const h = editRects.height
+    menuAnchor = { x, y }
+    fitContextMenu()
+}
 
-    if (x + w > innerWidth) {
-        x -= x + w - innerWidth
-    }
+function fitContextMenu(): void {
+    if (!domdialog.open) return
 
-    if (y + h > innerHeight) {
-        y -= h
-    }
+    const viewport = window.visualViewport
+    const left = (viewport?.offsetLeft ?? 0) + 8
+    const top = (viewport?.offsetTop ?? 0) + 8
+    const width = Math.max(0, (viewport?.width ?? window.innerWidth) - 16)
+    const height = Math.max(0, (viewport?.height ?? window.innerHeight) - 16)
 
-    if (rightToLeft) {
-        x = x - innerWidth + w
-    }
+    domdialog.style.maxWidth = `${width}px`
+    domdialog.style.maxHeight = `${height}px`
 
+    const rect = domdialog.getBoundingClientRect()
+    const x = Math.max(left, Math.min(menuAnchor.x, left + width - rect.width))
+    const y = Math.max(top, Math.min(menuAnchor.y, top + height - rect.height))
     domdialog.style.transform = `translate(${Math.floor(x)}px, ${Math.floor(y)}px)`
 }
 
@@ -228,6 +232,11 @@ function showTheseElements(query: string): void {
 }
 
 queueMicrotask(() => {
+    // Search results and icon-type controls can change the size after opening.
+    new ResizeObserver(fitContextMenu).observe(domdialog)
+    window.visualViewport?.addEventListener('resize', fitContextMenu)
+    window.visualViewport?.addEventListener('scroll', fitContextMenu)
+
     document.addEventListener('contextmenu', (event) => {
         if (event.altKey) { // if alt + right click, then regular OS context menu
             closeContextMenu()
