@@ -33,11 +33,6 @@
     grid-area: searchbar;
 }
 
-#move-overlay-notes,
-#notes_container {
-    grid-area: notes;
-}
-
 #move-overlay-quicklinks,
 #linkblocks {
     grid-area: quicklinks;
@@ -46,11 +41,6 @@
 #move-overlay-quotes,
 #quotes_container {
     grid-area: quotes;
-}
-
-#move-overlay-pomodoro,
-#pomodoro_container {
-    grid-area: pomodoro;
 }
 
 :root[data-theme='light'] #text-alignment-mover button,

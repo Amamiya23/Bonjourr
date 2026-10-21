@@ -69,9 +69,7 @@ export function toggleWidgetInSettings(states: [Widgets, boolean][]): void {
         time: 'i_time',
         main: 'i_main',
         quicklinks: 'i_quicklinks',
-        notes: 'i_notes',
         quotes: 'i_quotes',
-        pomodoro: 'i_pomodoro',
         searchbar: 'i_sb',
     }
 
@@ -88,9 +86,7 @@ export function toggleWidgetOnInterface(states: [Widgets, boolean][]): void {
         time: 'time',
         main: 'main',
         quicklinks: 'linkblocks',
-        notes: 'notes_container',
         quotes: 'quotes_container',
-        pomodoro: 'pomodoro_container',
         searchbar: 'sb_container',
     }
 

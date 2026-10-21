@@ -1,4 +1,4 @@
-import { elements, gridStringify } from './helpers.ts'
+import { elements, gridParse, gridStringify } from './helpers.ts'
 import { moveElements } from './index.ts'
 import { onclickdown } from 'clickdown/mod'
 
@@ -9,7 +9,16 @@ const dominterface = document.querySelector<HTMLElement>('#interface')
 
 export function setGridAreas(grid: MoveLayout['grid'] | string): void {
     const property = typeof grid === 'string' ? grid : gridStringify(grid)
+    const rows = typeof grid === 'string' ? gridParse(grid) : grid
+    const withoutMain = rows
+        .filter((row) => !row.includes('main') || row.some((area) => area !== 'main' && area !== '.'))
+        .map((row) => row.map((area) => area === 'main' ? '.' : area))
+
     document.documentElement.style.setProperty('--grid', property)
+    document.documentElement.style.setProperty(
+        '--grid-without-main',
+        withoutMain.length > 0 ? gridStringify(withoutMain) : property,
+    )
 }
 
 export function setAlign(id: Widgets, align?: MoveAlign): void {

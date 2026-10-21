@@ -6,15 +6,6 @@
     display: none;
 }
 
-#greetings {
-    font-size: var(--greeting-size);
-    font-weight: inherit;
-    margin: 0;
-    width: 100%;
-    min-width: 300px;
-    text-overflow: ellipsis;
-}
-
 #weather {
     display: block;
     position: relative;
@@ -22,6 +13,10 @@
     color: inherit;
     width: 100%;
     transition: opacity 0.05s 0.1s;
+}
+
+#interface:has(> #main.hidden) #weather {
+    display: none;
 }
 
 #weather.init {

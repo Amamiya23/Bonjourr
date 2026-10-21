@@ -582,6 +582,23 @@
     display: none;
 }
 
+#clock-weather-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    column-gap: 1em;
+}
+
+#clock-weather-row .clock-date {
+    margin: 0;
+}
+
+#clock-weather-row #weather {
+    width: auto;
+    max-width: 100%;
+}
+
 #time-container.he_hidden ~ .clock-date {
     margin-top: 0;
 }

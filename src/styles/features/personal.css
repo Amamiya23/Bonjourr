@@ -19,12 +19,6 @@
     max-width: min(100%, 48em);
 }
 
-#interface.compact #greetings {
-    width: auto;
-    min-width: 0;
-    font-size: min(var(--greeting-size), 1.5em);
-}
-
 #interface.compact #weather {
     display: inline-flex;
     align-items: center;
@@ -750,6 +744,7 @@ aside .personal-action-row .personal-actions {
     #interface.compact:not(.move-edit) {
         padding-top: 12vh;
         row-gap: 1.5em;
+        justify-content: flex-start;
     }
 
     #interface:has(#linkblocks.with-groups:not(.hidden)):not(.move-edit) {

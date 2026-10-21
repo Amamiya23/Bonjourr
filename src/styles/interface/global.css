@@ -16,6 +16,14 @@
     transition: opacity var(--load-time-transition), transform 0.33s;
 }
 
+#interface:not(.move-edit):has(> #main > #weather-status:empty) {
+    grid-template-areas: var(--grid-without-main, var(--grid));
+}
+
+#interface:not(.move-edit) > #main:has(> #weather-status:empty) {
+    display: none;
+}
+
 @supports not (min-height: 100dvh) {
     #image-background-overlay,
     #interface {
@@ -31,9 +39,7 @@
 .move-edit #time,
 .move-edit #linkblocks,
 .move-edit #sb_container,
-.move-edit #notes_container,
-.move-edit #quotes_container,
-.move-edit #pomodoro_container {
+.move-edit #quotes_container {
     z-index: 3;
     cursor: pointer;
     user-select: none;
@@ -44,9 +50,7 @@
 #time,
 #linkblocks,
 #sb_container,
-#notes_container,
-#quotes_container,
-#pomodoro_container {
+#quotes_container {
     place-self: center;
 }
 

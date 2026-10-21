@@ -9,16 +9,14 @@ type Defaults = {
     triple: MoveLayout
 }
 
-const MOVE_WIDGETS = ['time', 'main', 'quicklinks', 'notes', 'quotes', 'searchbar', 'pomodoro']
+const MOVE_WIDGETS = ['time', 'main', 'quicklinks', 'quotes', 'searchbar']
 
 export const elements = {
     time: globalThis.document.getElementById('time'),
     main: globalThis.document.getElementById('main'),
     quicklinks: globalThis.document.getElementById('linkblocks'),
     searchbar: globalThis.document.getElementById('sb_container'),
-    notes: globalThis.document.getElementById('notes_container'),
     quotes: globalThis.document.getElementById('quotes_container'),
-    pomodoro: globalThis.document.getElementById('pomodoro_container'),
 } as const
 
 export const defaultLayouts: Defaults = {
@@ -53,22 +51,26 @@ export function hasDuplicateInArray(arr: string[], id?: string): boolean {
 }
 
 export function getLayout(data: Move | Sync, selection?: Move['selection']): MoveLayout {
-    if ('move' in data) {
-        const layouts = data.move.layouts
-        const selec = selection ?? data.move.selection
-        return layouts[selec] ?? defaultLayouts[selec]
-    }
+    const move = 'move' in data ? data.move : data
+    const selec = selection ?? move.selection
+    const layout = move.layouts?.[selec] ?? defaultLayouts[selec]
+    const grid = layout.grid
+        .filter((row) =>
+            !row.some((area) => area === 'notes' || area === 'pomodoro') ||
+            row.some((area) => area !== 'notes' && area !== 'pomodoro' && area !== '.')
+        )
+        .map((row) => row.map((area) => area === 'notes' || area === 'pomodoro' ? '.' : area))
 
-    const layouts = data.layouts
-    const selec = selection ?? data.selection
-    return layouts?.[selec] ?? defaultLayouts[selec]
+    return { ...layout, grid }
 }
 
 //	Grid
 
 function gridValidate(grid: Grid): boolean {
     const cells = grid.flat()
-    const cellsAreWidgets = cells.every((val) => val === '.' || MOVE_WIDGETS.includes(val))
+    const cellsAreWidgets = cells.every((val) =>
+        val === '.' || val === 'notes' || val === 'pomodoro' || MOVE_WIDGETS.includes(val)
+    )
     return cellsAreWidgets
 }
 
@@ -250,9 +252,7 @@ export function getWidgetsStorage(data: Sync): Widgets[] {
     const displayed = {
         time: data.time,
         main: data.main,
-        notes: !!data.notes?.on,
         searchbar: !!data.searchbar?.on,
-        pomodoro: !!data.pomodoro?.on,
         quicklinks: data.quicklinks,
         quotes: !!data.quotes?.on,
     }
@@ -278,14 +278,8 @@ export function updateWidgetsStorage(states: [Widgets, boolean][], data: Sync): 
         if (id === 'quotes') {
             data.quotes = { ...data.quotes, on: on }
         }
-        if (id === 'pomodoro') {
-            data.pomodoro = { ...data.pomodoro, on: on }
-        }
         if (id === 'searchbar') {
             data.searchbar = { ...data.searchbar, on: on }
-        }
-        if (id === 'notes' && data.notes) {
-            data.notes = { ...data.notes, on: on }
         }
     }
 
@@ -316,13 +310,7 @@ export function addGridWidget(grid: string, id: Widgets, selection: Move['select
     if (id === 'main') {
         position = isFirstWidgetTime ? 1 : 0
     }
-    if (id === 'notes') {
-        position = rows.length === 1 ? 1 : 2
-    }
     if (id === 'searchbar') {
-        position = rows.length === 1 ? 1 : 2
-    }
-    if (id === 'pomodoro') {
         position = rows.length === 1 ? 1 : 2
     }
     if (id === 'quicklinks') {

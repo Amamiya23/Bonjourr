@@ -211,22 +211,8 @@ label {
         padding: 0 1em;
     }
 
-    /* #notes_container #pocket-editor {
-    	line-height: 1.7em;
-    } */
-
-    #notes_container #pocket-editor input[type='checkbox'] {
-        width: calc(var(--font-size) * 1.5);
-        height: calc(var(--font-size) * 1.5);
-    }
-
     #link-mini .link-title.add-group {
         visibility: visible;
-    }
-
-    [data-pocket-editor] [data-todo] p {
-        display: flex;
-        align-items: center;
     }
 
     aside,

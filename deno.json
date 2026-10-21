@@ -26,7 +26,6 @@
         "esbuild": "npm:esbuild@^0.28.0",
         "fake-indexeddb": "npm:fake-indexeddb@^6.2.5",
         "happy-dom": "npm:happy-dom@20.0.11",
-        "pocket-editor": "npm:pocket-editor@^2.6.0",
         "prism-code-editor": "npm:prism-code-editor@^5.2.0"
     },
     "nodeModulesDir": "auto",

@@ -13,10 +13,7 @@ import { setOpenInNewTab } from './features/link-navigation.ts'
 import { searchbar } from './features/searchbar.ts'
 import { weather } from './features/weather/index.ts'
 import { quotes } from './features/quotes.ts'
-import { notes } from './features/notes.ts'
 import { clock } from './features/clock/index.ts'
-import { pomodoro, setModeGlider } from './features/pomodoro.ts'
-import { togglePomodoroFocus } from './features/pomodoro.ts'
 import { openSettingsButtonEvent } from './features/contextmenu.ts'
 
 import { colorInput, fadeOut, inputThrottle, turnRefreshButton, webkitRangeTrackColor } from './shared/dom.ts'
@@ -188,15 +185,7 @@ function initOptionsValues(data: Sync, local: Local): void {
     setInput('i_pagewidth', data.pagewidth || 1600)
     setInput('i_pagegap', data.pagegap ?? 1)
     setInput('i_dateformat', data.dateformat || 'eu')
-    setInput('i_greeting', data.greeting ?? '')
-    setInput('i_greetmorning', data.greetingscustom?.morning ?? '')
-    setInput('i_greetafternoon', data.greetingscustom?.afternoon ?? '')
-    setInput('i_greetevening', data.greetingscustom?.evening ?? '')
-    setInput('i_greetnight', data.greetingscustom?.night ?? '')
     setInput('i_textshadow', data.textShadow ?? 0.2)
-    setInput('i_noteswidth', data.notes?.width || 50)
-    setInput('i_notes-opacity', opacityFromHex(data.notes?.background ?? '#fff2'))
-    setInput('i_notesalign', data.notes?.align || 'left')
     setInput('i_sbengine', data.searchbar?.engine || 'google')
     setInput('i_sbplaceholder', data.searchbar?.placeholder || '')
     setInput('i_sb-opacity', opacityFromHex(data.searchbar?.background ?? '#fff2'))
@@ -213,8 +202,6 @@ function initOptionsValues(data: Sync, local: Local): void {
     setInput('i_analog-background-opacity', opacityFromHex(data.analogstyle?.background ?? '#fff2'))
     setInput('i_ampm_position', data.clock.ampmposition || 'top-left')
     setInput('i_clocksize', data.clock?.size ?? 5)
-    setInput('i_greetsize', data.greetingsize ?? 3)
-    setInput('i_greetmode', data.greetingsmode ?? 'auto')
     setInput('i_timezone', data.clock?.timezone || 'auto')
     setInput('i_geol', data.weather?.geolocation || 'approximate')
     setInput('i_units', data.weather?.unit ?? 'metric')
@@ -227,12 +214,6 @@ function initOptionsValues(data: Sync, local: Local): void {
     setInput('i_size', data.font?.size || (IS_MOBILE ? '11' : '14'))
 
     setInput('i_synctype', local.syncType ?? (PLATFORM === 'online' ? 'off' : 'browser'))
-    setInput('i_pmdr_volume', data.pomodoro?.volume ?? 0.7)
-    setInput('i_pmdr_alarms', data.pomodoro?.alarm ?? 'marimba')
-    setInput('i_pmdr_break', data.pomodoro?.timeFor.break / 60)
-    setInput('i_pmdr_break', data.pomodoro?.timeFor.break / 60)
-    setInput('i_pmdr_pomodoro', data.pomodoro?.timeFor.pomodoro / 60)
-    setInput('i_pmdr_longbreak', data.pomodoro?.timeFor.longbreak / 60)
 
     setFormInput('i_city', local.lastWeather?.approximation?.city ?? 'Paris', data.weather.city)
     setFormInput('i_customfont', systemfont.placeholder, data.font?.family)
@@ -251,12 +232,8 @@ function initOptionsValues(data: Sync, local: Local): void {
     setCheckbox('i_worldclocks', data.clock?.worldclocks ?? false)
     setCheckbox('i_main', data.main)
     setCheckbox('i_show_unit', data.weather.show_unit ?? false)
-    setCheckbox('i_greethide', !data.hide?.greetings)
-    setCheckbox('i_notes', data.notes?.on ?? false)
     setCheckbox('i_sb', data.searchbar?.on ?? false)
     setCheckbox('i_quotes', data.quotes?.on ?? false)
-    setCheckbox('i_pomodoro', data.pomodoro?.on ?? false)
-    setCheckbox('i_pmdr_sound', data.pomodoro?.sound ?? true)
     setCheckbox('i_ampm', data.clock?.ampm ?? false)
     setCheckbox('i_ampm-label', data.clock?.ampmlabel ?? false)
     setCheckbox('i_sbsuggestions', data.searchbar?.suggestions ?? true)
@@ -270,7 +247,6 @@ function initOptionsValues(data: Sync, local: Local): void {
     colorInput('texture-color', data.backgrounds.texture.color ?? '#ffffff')
     colorInput('font-color', data.font.color)
 
-    paramId('i_notes-shade')?.classList.toggle('on', (data.notes?.background ?? '#fff').includes('#000'))
     paramId('i_sb-shade')?.classList.toggle('on', (data.searchbar?.background ?? '#fff').includes('#000'))
     paramId('i_analog-border-shade')?.classList.toggle('on', (data.analogstyle?.border ?? '#fff').includes('#000'))
     paramId('i_analog-background-shade')?.classList.toggle(
@@ -308,8 +284,6 @@ function initOptionsValues(data: Sync, local: Local): void {
 
     // Activate feature options
     toggleSettingsDropdown('analog_options', data.clock.analog && data.showall)
-    toggleSettingsDropdown('greetings_options', !data.hide?.greetings)
-    toggleSettingsDropdown('greetingscustom_options', data.greetingsmode === 'custom')
     toggleSettingsDropdown('digital_options', !data.clock.analog)
     toggleSettingsDropdown('ampm_label', data.clock.ampm)
     toggleSettingsDropdown('ampm_position', data.clock.ampmlabel && data.clock.ampm)
@@ -320,8 +294,6 @@ function initOptionsValues(data: Sync, local: Local): void {
     toggleSettingsDropdown('quicklinks_options', data.quicklinks)
     toggleSettingsDropdown('time_options', data.time)
     toggleSettingsDropdown('main_options', data.main)
-    toggleSettingsDropdown('pomodoro_options', data.pomodoro.on)
-    toggleSettingsDropdown('notes_options', data.notes?.on ?? false)
     toggleSettingsDropdown('searchbar_options', data.searchbar?.on)
     toggleSettingsDropdown('quotes_options', data.quotes?.on)
 
@@ -742,77 +714,6 @@ function initOptionsEvents(): void {
         weather(undefined, { show_unit: target.checked })
     })
 
-    onclickdown(paramId('i_greethide'), (_, target) => {
-        toggleSettingsDropdown('greetings_options', target.checked)
-        hideElements({ greetings: !target.checked }, { isEvent: true })
-    })
-
-    // Greetings
-
-    paramId('i_greeting').addEventListener('input', function (): void {
-        clock(undefined, { greeting: this.value })
-    })
-
-    paramId('i_greeting').addEventListener('change', () => {
-        paramId('i_greeting').blur()
-    })
-
-    paramId('i_greetsize').addEventListener('input', function (this: HTMLInputElement): void {
-        clock(undefined, { greetingsize: this.value })
-    })
-
-    paramId('i_greetmode').addEventListener('change', function (this: HTMLInputElement): void {
-        clock(undefined, { greetingsmode: this.value })
-    })
-
-    paramId(`i_greetmorning`).addEventListener('input', function (): void {
-        clock(undefined, { greetingscustom: { morning: this.value } })
-    })
-    paramId(`i_greetafternoon`).addEventListener('input', function (): void {
-        clock(undefined, { greetingscustom: { afternoon: this.value } })
-    })
-    paramId(`i_greetevening`).addEventListener('input', function (): void {
-        clock(undefined, { greetingscustom: { evening: this.value } })
-    })
-    paramId(`i_greetnight`).addEventListener('input', function (): void {
-        clock(undefined, { greetingscustom: { night: this.value } })
-    })
-
-    paramId(`i_greetmorning`).addEventListener('change', () => {
-        paramId(`i_greetmorning`).blur()
-    })
-    paramId(`i_greetafternoon`).addEventListener('change', () => {
-        paramId(`i_greetafternoon`).blur()
-    })
-    paramId(`i_greetevening`).addEventListener('change', () => {
-        paramId(`i_greetevening`).blur()
-    })
-    paramId(`i_greetnight`).addEventListener('change', () => {
-        paramId(`i_greetnight`).blur()
-    })
-
-    // Notes
-
-    onclickdown(paramId('i_notes'), (_, target) => {
-        moveElements(undefined, { widget: ['notes', target.checked] })
-    })
-
-    paramId('i_notesalign').addEventListener('change', function (this: HTMLInputElement): void {
-        notes(undefined, { align: this.value })
-    })
-
-    paramId('i_noteswidth').addEventListener('input', function (this: HTMLInputElement): void {
-        notes(undefined, { width: this.value })
-    })
-
-    paramId('i_notes-opacity').addEventListener('input', function (this: HTMLInputElement): void {
-        notes(undefined, { background: true })
-    })
-
-    onclickdown(paramId('i_notes-shade'), () => {
-        notes(undefined, { background: true })
-    })
-
     // Searchbar
 
     onclickdown(paramId('i_sb'), (_, target) => {
@@ -886,48 +787,6 @@ function initOptionsEvents(): void {
         quotes(undefined, { url: paramId('i_qturl').value })
     })
 
-    // Pomodoro
-
-    onclickdown(paramId('i_pomodoro'), (_, target) => {
-        moveElements(undefined, { widget: ['pomodoro', target.checked] })
-
-        const glider = document.querySelector('#pomodoro_container .glider') as HTMLDivElement
-        if (glider.style.width === '0px') {
-            // mode glider needs pomodoro to be rendered to know the button sizes, so delay is required
-            setTimeout(() => {
-                setModeGlider()
-            }, 333)
-        }
-    })
-
-    onclickdown(paramId('i_pmdr_sound'), (_, target) => {
-        pomodoro(undefined, { sound: target.checked })
-    })
-
-    onclickdown(paramId('i_pmdr_listen'), () => {
-        pomodoro(undefined, { listen: true })
-    })
-
-    paramId('i_pmdr_alarms').addEventListener('change', function (): void {
-        pomodoro(undefined, { alarm: this.value })
-    })
-
-    paramId('i_pmdr_volume').addEventListener('input', function (): void {
-        pomodoro(undefined, { volume: Number(this.value) })
-    })
-
-    paramId('i_pmdr_pomodoro').addEventListener('input', function (): void {
-        pomodoro(undefined, { timeFor: { pomodoro: Number(this.value) } })
-    })
-
-    paramId('i_pmdr_break').addEventListener('input', function (): void {
-        pomodoro(undefined, { timeFor: { break: Number(this.value) } })
-    })
-
-    paramId('i_pmdr_longbreak').addEventListener('input', function (): void {
-        pomodoro(undefined, { timeFor: { longbreak: Number(this.value) } })
-    })
-
     // Custom fonts
 
     paramId('i_customfont').addEventListener('pointerenter', () => {
@@ -962,8 +821,6 @@ function initOptionsEvents(): void {
     // Page layout
 
     onclickdown(paramId('b_editmove'), () => {
-        togglePomodoroFocus(false)
-
         moveElements(undefined, {
             toggle: !document.getElementById('interface')?.classList.contains('move-edit'),
         })
@@ -1141,11 +998,6 @@ function initWorldClocksAndTimezone(data: Sync): void {
 function translatePlaceholders(): void {
     const cases = [
         ['i_title', 'Name'],
-        ['i_greeting', 'Name'],
-        ['i_greetmorning', 'Hello, $name!'],
-        ['i_greetafternoon', 'Good afternoon'],
-        ['i_greetevening', 'Good evening'],
-        ['i_greetnight', 'Good night'],
         ['i_tabtitle', 'New tab'],
         ['i_sbrequest', 'Search query: %s'],
         ['i_sbplaceholder', 'Search'],
@@ -1206,12 +1058,10 @@ async function switchLangs(language: string): Promise<void> {
     weather({ sync: data, lastWeather: local.lastWeather })
     quotes({ sync: data, local })
     tabTitle(data.tabtitle)
-    notes(data.notes)
     customFont(undefined, { lang: true })
     translatePlaceholders()
     translateAriaLabels()
     supportersNotifications(undefined, { translate: true })
-    setModeGlider()
     document.dispatchEvent(new Event('language-updated'))
 }
 

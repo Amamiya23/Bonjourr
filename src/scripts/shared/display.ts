@@ -1,6 +1,6 @@
 import type { Sync } from '../../types/sync.ts'
 
-type InterfaceWidgetName = 'clock' | 'links' | 'fonts' | 'quotes' | 'pomodoro'
+type InterfaceWidgetName = 'clock' | 'links' | 'fonts' | 'quotes'
 
 const features: InterfaceWidgetName[] = ['clock', 'links']
 let interfaceDisplayCallback = () => undefined
@@ -19,9 +19,6 @@ export function displayInterface(ready?: InterfaceWidgetName, data?: Sync): void
         }
         if (data?.quotes?.on) {
             features.push('quotes')
-        }
-        if (data?.pomodoro?.on) {
-            features.push('pomodoro')
         }
 
         return

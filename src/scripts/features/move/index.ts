@@ -232,9 +232,7 @@ function layoutChange(data: Sync, column: string): void {
     const list: [Widgets, boolean][] = [
         ['time', widgetsInGrid.includes('time')],
         ['main', widgetsInGrid.includes('main')],
-        ['notes', widgetsInGrid.includes('notes')],
         ['quotes', widgetsInGrid.includes('quotes')],
-        ['pomodoro', widgetsInGrid.includes('pomodoro')],
         ['searchbar', widgetsInGrid.includes('searchbar')],
         ['quicklinks', widgetsInGrid.includes('quicklinks')],
     ]
@@ -297,10 +295,8 @@ function layoutReset(data: Sync): void {
         quicklinks: undefined,
         main: undefined,
         time: undefined,
-        notes: undefined,
         searchbar: undefined,
         quotes: undefined,
-        pomodoro: undefined,
     })
 }
 

@@ -113,7 +113,8 @@ dialog#contextmenu button * {
     pointer-events: none;
 }
 
-dialog#contextmenu button > svg, dialog#contextmenu button .iconContainer {
+dialog#contextmenu button > svg,
+dialog#contextmenu button .iconContainer {
     height: 18px;
     width: 18px;
 }
@@ -223,22 +224,4 @@ dialog#contextmenu #background-actions button:disabled {
     to {
         transform: rotate(360deg);
     }
-}
-
-#pomodoro-info {
-    display: none;
-    flex-direction: column;
-    opacity: 0.8;
-    font-style: italic;
-    font-size: 0.8em;
-    text-align: left;
-}
-
-#pomodoro-info > div {
-    padding: 4px 12px;
-}
-
-dialog#contextmenu #pomodoro-info hr,
-#pomodoro-info.on {
-    display: flex;
 }

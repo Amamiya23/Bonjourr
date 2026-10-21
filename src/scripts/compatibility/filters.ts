@@ -484,9 +484,6 @@ export function toggleMoveWidgets(current: Sync, imported: Import): Sync {
         current.main = area.includes('main')
         current.quicklinks = area.includes('quicklinks')
 
-        if (current.notes) {
-            current.notes.on = area.includes('notes')
-        }
         if (current.quotes) {
             current.quotes.on = area.includes('quotes')
         }
@@ -501,9 +498,7 @@ export function toggleMoveWidgets(current: Sync, imported: Import): Sync {
         const importStates = {
             time: imported.time ?? current.time,
             main: imported.main ?? current.main,
-            notes: imported.notes?.on ?? current.notes?.on,
             quotes: imported.quotes?.on ?? current.quotes?.on,
-            pomodoro: imported.pomodoro?.on ?? current.pomodoro?.on,
             searchbar: imported.searchbar?.on ?? current.searchbar?.on,
             quicklinks: imported.quicklinks ?? current.quicklinks,
         }
@@ -511,7 +506,6 @@ export function toggleMoveWidgets(current: Sync, imported: Import): Sync {
         const diffWidgets = {
             time: current.time !== importStates.time,
             main: current.main !== importStates.main,
-            notes: current.notes?.on !== importStates.notes,
             quotes: current.quotes?.on !== importStates.quotes,
             searchbar: current.searchbar?.on !== importStates.searchbar,
             quicklinks: current.quicklinks !== importStates.quicklinks,
@@ -519,7 +513,7 @@ export function toggleMoveWidgets(current: Sync, imported: Import): Sync {
 
         // Force single layout with old imports
         // Partial imports, for example links list only, will not force single
-        if (Object.keys(imported).some((key) => key.match(/time|main|notes|quotes|searchbar|quicklinks/g))) {
+        if (Object.keys(imported).some((key) => key.match(/time|main|quotes|searchbar|quicklinks/g))) {
             current.move.selection = 'single'
         }
 

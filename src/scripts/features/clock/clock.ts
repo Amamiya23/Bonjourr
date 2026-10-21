@@ -1,24 +1,21 @@
 import { setUserDate, userDate } from '../../shared/time.ts'
-import { displayGreetings } from './greetings.ts'
 import { clockDate } from './date.ts'
 import { fixunits } from './helpers.ts'
 
 import type { Clock, WorldClock } from '../../../types/sync.ts'
 import type { DateFormat } from './date.ts'
-import type { Greetings } from './greetings.ts'
 
 export interface ClockStartOptions {
     clock: Clock
     world: WorldClock[]
     dateformat: DateFormat
-    greetings: Greetings
 }
 
 let clockInterval: ReturnType<typeof setTimeout>
 let clockVisibilityListener: (() => void) | null = null
 
 export function startClock(options: ClockStartOptions): void {
-    const { clock, world, dateformat, greetings } = options
+    const { clock, world, dateformat } = options
 
     document.getElementById('time')?.classList.toggle('is-analog', clock.analog)
     document.getElementById('time')?.classList.toggle('seconds', clock.seconds)
@@ -85,8 +82,6 @@ export function startClock(options: ClockStartOptions): void {
                 domregion.textContent = region
             }
         }
-
-        displayGreetings(greetings)
     }
 }
 
@@ -102,6 +97,8 @@ function getClock(index: number): HTMLDivElement {
     const clone = first?.cloneNode(true) as HTMLDivElement
 
     clone.removeAttribute('id')
+    clone.querySelector('#weather')?.remove()
+    clone.querySelector('#clock-weather-row')?.removeAttribute('id')
     clone.dataset.index = index.toString()
     container?.appendChild(clone)
 

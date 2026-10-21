@@ -79,20 +79,6 @@
     -webkit-backdrop-filter: var(--glass-blur);
 }
 
-/* Notes */
-
-:root[data-design='liquid-glass'] #pocket-editor {
-    position: relative;
-    border: 1px solid var(--glass-border);
-    border-radius: 1.4em;
-    background-color: var(--notes-background);
-    background-image: var(--glass-tint);
-    box-shadow: var(--glass-inner), var(--glass-shadow);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-}
-
-:root[data-design='liquid-glass'] #pocket-editor::before,
 :root[data-design='liquid-glass'] .link-group.in-folder .link-list::before {
     content: '';
     position: absolute;
@@ -148,15 +134,6 @@
     box-shadow: var(--glass-inner), 0 0.4em 1.2em rgb(0 0 0 / 0.2);
 }
 
-/* Pomodoro */
-
-:root[data-design='liquid-glass'] #pmdr_modes,
-:root[data-design='liquid-glass'] #focus-toggle {
-    background-image: var(--glass-tint);
-    border-color: var(--glass-border);
-    box-shadow: var(--glass-inner), var(--glass-shadow);
-}
-
 /* Dialogs, context menu and popups */
 
 :root[data-design='liquid-glass'] dialog,
@@ -193,14 +170,12 @@
 }
 
 :root[data-design='liquid-glass'] body.potato #searchbar-wrapper::before,
-:root[data-design='liquid-glass'] body.potato #pocket-editor::before,
 :root[data-design='liquid-glass'] body.potato .link-group.in-folder .link-list::before {
     animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
     :root[data-design='liquid-glass'] #searchbar-wrapper::before,
-    :root[data-design='liquid-glass'] #pocket-editor::before,
     :root[data-design='liquid-glass'] .link-group.in-folder .link-list::before {
         animation: none;
     }

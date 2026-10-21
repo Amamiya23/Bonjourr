@@ -73,14 +73,6 @@
     max-height: 330px;
 }
 
-#greetings_options.shown {
-    max-height: 430px;
-}
-
-#greetingscustom_options.shown {
-    max-height: 300px;
-}
-
 .all #ampm_label.shown {
     max-height: 60px;
 }
@@ -125,10 +117,6 @@
     max-height: 465px;
 }
 
-#notes_options.shown {
-    max-height: 200px;
-}
-
 #searchbar_options.shown {
     max-height: 440px;
 }
@@ -147,10 +135,6 @@
 
 #quotes_userlist.shown {
     max-height: 450px;
-}
-
-#pomodoro_options.shown {
-    max-height: 370px;
 }
 
 /* Dropdowns: Settings management Options */
@@ -234,22 +218,10 @@
     max-height: 380px;
 }
 
-.all .as_notes {
-    max-height: 210px;
-}
-
 .all .as_updates {
     max-height: 280px;
 }
 
 .all .as_sync {
     max-height: 280px;
-}
-
-.all .as_pomodoro {
-    max-height: 310px;
-}
-
-.all .as_greetings {
-    max-height: 365px;
 }

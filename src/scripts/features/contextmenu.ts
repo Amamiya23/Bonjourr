@@ -15,9 +15,7 @@ interface EventLocation {
         time: boolean
         main: boolean
         quotes: boolean
-        pomodoro: boolean
         searchbar: boolean
-        notes: boolean
     }
     interface: boolean
 }
@@ -33,24 +31,16 @@ const sectionMatching: Record<string, Section> = {
         scrollto: 'time_title',
     },
     main: {
-        section: '#main',
+        section: '#weather',
         scrollto: 'main_title',
     },
     quotes: {
         section: '#quotes_container',
         scrollto: 'quotes_title',
     },
-    pomodoro: {
-        section: '#pomodoro_container',
-        scrollto: 'pomodoro_title',
-    },
     searchbar: {
         section: '#sb_container',
         scrollto: 'searchbar_title',
-    },
-    notes: {
-        section: '#notes_container',
-        scrollto: 'notes_title',
     },
 }
 
@@ -62,9 +52,7 @@ let eventLocation: EventLocation
 export function openContextMenu(event: Event): void {
     const selection = globalThis.getSelection() // imperfect selected text detection to allow for OS context menu
 
-    const notesAreSelected = document.querySelector('#notes_container div[data-selected]')
-
-    if (selection?.toString() || notesAreSelected) {
+    if (selection?.toString()) {
         return
     }
 
@@ -76,10 +64,8 @@ export function openContextMenu(event: Event): void {
             time: !!target.closest(sectionMatching.time.section),
             main: !!target.closest(sectionMatching.main.section),
             quotes: !!target.closest(sectionMatching.quotes.section),
-            pomodoro: !!target.closest(sectionMatching.pomodoro.section),
             // allows context menu on whole search bar except input (to allow for native paste)
             searchbar: !!target.closest(sectionMatching.searchbar.section) && !target.closest('#searchbar'),
-            notes: !!target.closest(sectionMatching.notes.section),
         },
         interface: target.matches('main#interface') || target.matches('body'),
     }
@@ -96,7 +82,7 @@ export function openContextMenu(event: Event): void {
     }
 
     // hides/resets content from previous context menu
-    for (const node of domdialog.querySelectorAll('label, button, hr, #background-actions, input, #pomodoro-info')) {
+    for (const node of domdialog.querySelectorAll('label, button, hr, #background-actions, input')) {
         node.classList.remove('on')
 
         if (node instanceof HTMLInputElement) {
@@ -118,10 +104,6 @@ export function openContextMenu(event: Event): void {
     if (eventLocation.widgets.link) {
         populateDialogWithEditLink(event, domdialog)
         return
-    }
-
-    if (eventLocation.widgets.pomodoro) {
-        showTheseElements('#pomodoro-info')
     }
 
     if (eventLocation.widgets.quotes) {

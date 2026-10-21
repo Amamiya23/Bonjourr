@@ -13,8 +13,6 @@ import { weather } from './features/weather/index.ts'
 import { weatherApiSettings } from './features/weather/api-settings.ts'
 import { personalLayout } from './features/personal-layout.ts'
 import { quotes } from './features/quotes.ts'
-import { pomodoro } from './features/pomodoro.ts'
-import { notes } from './features/notes.ts'
 import { clock } from './features/clock/index.ts'
 import './features/contextmenu.ts'
 
@@ -85,8 +83,6 @@ async function startup(): Promise<void> {
     design(sync.design)
     searchbar(sync.searchbar)
     quotes({ sync, local })
-    pomodoro(sync.pomodoro)
-    notes(sync.notes)
     moveElements(sync.move)
     personalLayout(sync)
     customCss(sync.css)
