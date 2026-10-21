@@ -27,7 +27,7 @@
 }
 
 #interface.compact #description {
-    font-size: 1em;
+    font-size: 1.5em;
     min-height: 0;
     margin: 0;
 }
@@ -45,7 +45,7 @@
 }
 
 #interface.compact #tempContainer .temp {
-    font-size: 1.2em;
+    font-size: 1.5em;
 }
 
 #interface.compact #weather:not(:has(#tempContainer.he_hidden)) #current-temp,

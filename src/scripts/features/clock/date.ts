@@ -23,7 +23,7 @@ export function clockDate(wrapper: HTMLElement, date: Date, dateformat: DateForm
 
     if (dateformat === 'auto') {
         const intl = new Intl.DateTimeFormat(lang, { weekday: 'long', month: 'long', day: 'numeric' })
-        aa.textContent = intl.format(date)
+        aa.textContent = intl.format(date).replace(/[,，]/g, '')
         bb.textContent = ''
         cc.textContent = ''
     }

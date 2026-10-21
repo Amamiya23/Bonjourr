@@ -1,5 +1,5 @@
 import { minutator, suntime, userDate } from '../../shared/time.ts'
-import { getLang, tradThis } from '../../utils/translations.ts'
+import { tradThis } from '../../utils/translations.ts'
 import { getSunsetHour } from './index.ts'
 
 import type { LastWeather } from '../../../types/local.ts'
@@ -8,14 +8,12 @@ import type { Weather } from '../../../types/sync.ts'
 let weatherFirstStart = true
 
 export function displayWeather(data: Weather, lastWeather: LastWeather): void {
-    const useSinograms = getLang().includes('zh') || getLang().includes('ja')
     const currentDesc = document.getElementById('current-desc')
     const currentTemp = document.getElementById('current-temp')
     const tempContainer = document.getElementById('tempContainer')
     const dotContainer = document.getElementById('dotContainer')
     const weatherdom = document.getElementById('weather')
     const unit = data.unit
-    const dot = useSinograms ? '。' : '. '
     const date = userDate()
 
     const handleDescription = () => {
@@ -39,7 +37,7 @@ export function displayWeather(data: Weather, lastWeather: LastWeather): void {
         const splitString = tempReport.split(/<temp\d+>/).filter(Boolean)
 
         if (currentDesc && currentTemp && dotContainer && tempContainer) {
-            currentDesc.innerText = weatherReport + dot
+            currentDesc.innerText = weatherReport + ' '
 
             currentTemp.querySelector<HTMLElement>('#current-a')?.replaceChildren(splitString[0])
             currentTemp.querySelector<HTMLElement>('#current-temp-a .temp-value')?.replaceChildren(
@@ -58,7 +56,7 @@ export function displayWeather(data: Weather, lastWeather: LastWeather): void {
                 data.temperature === 'both' ? getUnitSymbol(unit) : '',
             )
 
-            dotContainer.innerText = dot
+            dotContainer.innerText = ''
 
             // for icon temp
             tempContainer.querySelector<HTMLElement>('.temp-value')?.replaceChildren(maintemp.toString() + '°')

@@ -608,10 +608,6 @@
     content: ' ';
 }
 
-.clock-date.us .clock-date-aa-separator::after {
-    content: ', ';
-}
-
 .clock-date-secondary {
     display: block;
     font-size: smaller;
