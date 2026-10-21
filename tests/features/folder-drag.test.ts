@@ -47,6 +47,7 @@ function pointer(target: Element, type: string, x: number, y: number, pointerTyp
             cancelable: true,
             button: 0,
             pointerId: 1,
+            isPrimary: true,
             pointerType,
             clientX: x,
             clientY: y,
@@ -63,6 +64,7 @@ for (const pointerType of ['mouse', 'touch']) {
         fn: async () => {
             const anchor = await renderFolder()
             pointer(anchor, 'pointerdown', 130, 130, pointerType)
+            if (pointerType === 'touch') await flush(480)
             pointer(anchor, 'pointermove', 500, 500, pointerType)
             assertEquals(document.querySelectorAll('.folder-drag-preview').length, 1)
             assertEquals(document.querySelector('.link-group')?.classList.contains('in-drag'), false)
@@ -105,7 +107,9 @@ Deno.test({
     fn: async () => {
         const anchor = await renderFolder()
         pointer(anchor, 'pointerdown', 130, 130, 'touch')
+        await flush(480)
         pointer(anchor, 'pointermove', 500, 500, 'touch')
+        assertEquals(document.querySelectorAll('.folder-drag-preview').length, 1)
         pointer(anchor, 'pointercancel', 500, 500, 'touch')
         await flush()
         assertEquals(((await storage.sync.get()).links000000 as LinkElem).parent, 'linksfolder')
@@ -204,6 +208,137 @@ async function renderApps(): Promise<HTMLAnchorElement> {
     }
     return document.querySelector<HTMLAnchorElement>('#links000000 a')!
 }
+
+function touchScrollIsBlocked(target: Element): boolean {
+    const event = new Event('touchmove', { bubbles: true, cancelable: true })
+    target.dispatchEvent(event)
+    return event.defaultPrevented
+}
+
+for (const location of ['desktop', 'folder preview', 'expanded folder', 'page navigation']) {
+    Deno.test({
+        name: `A touch swipe on ${location} scrolls without starting a drag, even if the finger then pauses`,
+        sanitizeOps: false,
+        sanitizeResources: false,
+        fn: async () => {
+            let target: HTMLElement
+            if (location === 'desktop') {
+                target = await renderApps()
+            } else {
+                target = await renderFolder()
+                if (location === 'expanded folder') {
+                    document.querySelector<HTMLButtonElement>('.folder-more')!.click()
+                    await flush(150)
+                    target = document.querySelector<HTMLAnchorElement>('#links000000 a')!
+                } else if (location === 'page navigation') {
+                    target = document.querySelector<HTMLButtonElement>('#link-mini .link-title:not(.add-group)')!
+                }
+            }
+            let captures = 0
+            target.setPointerCapture = () => captures++
+            const before = await storage.sync.get()
+            pointer(target, 'pointerdown', 130, 130, 'touch')
+            assertEquals(touchScrollIsBlocked(target), false)
+            pointer(target, 'pointermove', 130, 180, 'touch')
+            await flush(480)
+            pointer(target, 'pointermove', 130, 250, 'touch')
+            pointer(target, 'pointerup', 130, 250, 'touch')
+            assertEquals(captures, 0)
+            assertEquals(touchScrollIsBlocked(target), false)
+            assertEquals(document.querySelector('.in-drag, .folder-drag-preview, .drag-ready'), null)
+            assertEquals(await storage.sync.get(), before)
+        },
+    })
+}
+
+Deno.test({
+    name: 'A touch tap with slight finger movement keeps normal link activation and never captures the pointer',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderApps()
+        let captures = 0
+        anchor.setPointerCapture = () => captures++
+        pointer(anchor, 'pointerdown', 130, 130, 'touch')
+        pointer(anchor, 'pointermove', 134, 133, 'touch')
+        pointer(anchor, 'pointerup', 134, 133, 'touch')
+        assertEquals(clickReachesLink(anchor), true)
+        await flush(480)
+        assertEquals(captures, 0)
+        assertEquals(document.querySelector('.drag-ready, .in-drag'), null)
+        assertEquals(touchScrollIsBlocked(anchor), false)
+    },
+})
+
+for (const cancellation of ['pointercancel', 'scroll']) {
+    Deno.test({
+        name: `A ${cancellation} before the long press clears the pending touch gesture`,
+        sanitizeOps: false,
+        sanitizeResources: false,
+        fn: async () => {
+            const anchor = await renderApps()
+            pointer(anchor, 'pointerdown', 130, 130, 'touch')
+            if (cancellation === 'pointercancel') {
+                pointer(anchor, 'pointercancel', 130, 130, 'touch')
+            } else {
+                document.dispatchEvent(new Event('scroll'))
+            }
+            await flush(480)
+            pointer(anchor, 'pointermove', 200, 200, 'touch')
+            pointer(anchor, 'pointerup', 200, 200, 'touch')
+            assertEquals(document.querySelector('.drag-ready, .in-drag'), null)
+            assertEquals(touchScrollIsBlocked(anchor), false)
+            assertEquals(((await storage.sync.get()).links000000 as LinkElem).order, 0)
+        },
+    })
+}
+
+Deno.test({
+    name: 'Releasing a stationary long press opens editing instead of navigating to the app',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderApps()
+        pointer(anchor, 'pointerdown', 130, 130, 'touch')
+        await flush(480)
+        pointer(anchor, 'pointerup', 130, 130, 'touch')
+        assertEquals(clickReachesLink(anchor), false)
+        await flush()
+        assertEquals((document.getElementById('contextmenu') as HTMLDialogElement).open, true)
+        assertEquals(document.querySelector('.drag-ready, .in-drag'), null)
+        assertEquals(touchScrollIsBlocked(anchor), false)
+        document.dispatchEvent(new Event('close-edit'))
+        await flush(250)
+    },
+})
+
+Deno.test({
+    name: 'A stationary touch long press arms app reordering, blocks scrolling during drag, and clears on release',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderApps()
+        pointer(anchor, 'pointerdown', 130, 130, 'touch')
+        pointer(anchor, 'pointermove', 133, 132, 'touch')
+        await flush(480)
+        assertEquals(anchor.closest('.link')!.classList.contains('drag-ready'), true)
+        assertEquals(touchScrollIsBlocked(anchor), true)
+        const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+        anchor.dispatchEvent(menu)
+        assertEquals(menu.defaultPrevented, true)
+        assertEquals((document.getElementById('contextmenu') as HTMLDialogElement).open, false)
+        pointer(anchor, 'pointermove', 160, 130, 'touch')
+        assertEquals(document.querySelector('.link-group')?.classList.contains('dragging'), true)
+        pointer(anchor, 'pointermove', 220, 130, 'touch')
+        pointer(anchor, 'pointermove', 247, 130, 'touch')
+        pointer(anchor, 'pointerup', 247, 130, 'touch')
+        assertEquals(clickReachesLink(anchor), false)
+        assertEquals(touchScrollIsBlocked(anchor), false)
+        await flush(260)
+        assertEquals(((await storage.sync.get()).links000000 as LinkElem).order, 1)
+        assertEquals(document.querySelector('.drag-ready, .in-drag'), null)
+    },
+})
 
 function clickReachesLink(anchor: HTMLAnchorElement, detail = 1): boolean {
     let reached = false

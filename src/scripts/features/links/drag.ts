@@ -34,6 +34,7 @@ let coords: Coords[] = []
 let dragContainers: NodeListOf<HTMLElement>
 let dragChangeParentTimeout: ReturnType<typeof setTimeout>
 let dragAnimationFrame = 0
+let dragPointerId = 0
 let folderBounds: DOMRect | undefined
 let desktopBounds: DOMRect | undefined
 let clearDragClick: (() => void) | undefined
@@ -46,6 +47,94 @@ let domlinklinks: NodeListOf<HTMLLIElement>
 let domlinktitles: NodeListOf<HTMLButtonElement>
 let domlinkgroups: NodeListOf<HTMLDivElement>
 let domlinkgroup: HTMLDivElement
+
+// Leave native scrolling alone until a stationary long press explicitly arms a drag.
+function waitForTouchDrag(event: PointerEvent, target: HTMLElement, start: (event: PointerEvent) => void): void {
+    const pointerId = event.pointerId
+    const startX = event.clientX
+    const startY = event.clientY
+    const captureTarget = event.target as Element
+    let armed = false
+    let started = false
+    const timer = setTimeout(() => {
+        if (!target.isConnected) return clear()
+        armed = true
+        target.classList.add('drag-ready')
+    }, 450)
+
+    document.addEventListener('pointermove', move)
+    document.addEventListener('pointerup', finish)
+    document.addEventListener('pointercancel', finish)
+    document.addEventListener('pointerdown', cancelOtherPointer)
+    document.addEventListener('touchmove', preventScroll, { passive: false })
+    document.addEventListener('touchend', clear)
+    document.addEventListener('touchcancel', clear)
+    document.addEventListener('contextmenu', preventMenu, true)
+    document.addEventListener('scroll', cancelScroll, true)
+    globalThis.addEventListener('blur', clear)
+
+    function move(event: PointerEvent): void {
+        if (event.pointerId !== pointerId || started) return
+        if (!target.isConnected) return clear()
+        if (Math.hypot(event.clientX - startX, event.clientY - startY) <= 8) return
+        if (!armed) return clear()
+
+        started = true
+        target.classList.remove('drag-ready')
+        captureTarget.setPointerCapture?.(pointerId)
+        start(event)
+    }
+
+    function preventScroll(event: TouchEvent): void {
+        if (armed && event.cancelable) event.preventDefault()
+    }
+
+    function preventMenu(event: Event): void {
+        if (!target.contains(event.target as Node)) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+    }
+
+    function cancelOtherPointer(event: PointerEvent): void {
+        if (!started && event.pointerId !== pointerId) clear()
+    }
+
+    function cancelScroll(): void {
+        if (!started) clear()
+    }
+
+    function finish(event: PointerEvent): void {
+        if (event.pointerId !== pointerId) return
+        const showMenu = armed && !started && event.type === 'pointerup'
+        clear()
+        if (showMenu) {
+            preventClickAfterDrag()
+            captureTarget.dispatchEvent(
+                new MouseEvent('contextmenu', {
+                    bubbles: true,
+                    cancelable: true,
+                    clientX: startX,
+                    clientY: startY,
+                }),
+            )
+        }
+    }
+
+    function clear(): void {
+        clearTimeout(timer)
+        target.classList.remove('drag-ready')
+        document.removeEventListener('pointermove', move)
+        document.removeEventListener('pointerup', finish)
+        document.removeEventListener('pointercancel', finish)
+        document.removeEventListener('pointerdown', cancelOtherPointer)
+        document.removeEventListener('touchmove', preventScroll)
+        document.removeEventListener('touchend', clear)
+        document.removeEventListener('touchcancel', clear)
+        document.removeEventListener('contextmenu', preventMenu, true)
+        document.removeEventListener('scroll', cancelScroll, true)
+        globalThis.removeEventListener('blur', clear)
+    }
+}
 
 function preventClickAfterDrag(): void {
     clearDragClick?.()
@@ -74,8 +163,19 @@ function preventClickAfterDrag(): void {
 
 export function startFolderAppDrag(event: PointerEvent): void {
     if (event.button !== 0 || domlinkblocks.classList.contains('select-all')) return
+    if (event.pointerType === 'touch' && !event.isPrimary) return
 
     const anchor = event.currentTarget as HTMLAnchorElement
+    event.stopPropagation()
+
+    if (event.pointerType === 'touch') {
+        waitForTouchDrag(event, anchor, (move) => dragFolderApp(move, anchor, event))
+    } else {
+        dragFolderApp(event, anchor)
+    }
+}
+
+function dragFolderApp(event: PointerEvent, anchor: HTMLAnchorElement, origin = event): void {
     const folder = anchor.closest<HTMLLIElement>('.large-folder')
     const group = anchor.closest<HTMLDivElement>('.link-group')
     const panel = folder?.querySelector('.link-icon')
@@ -83,13 +183,12 @@ export function startFolderAppDrag(event: PointerEvent): void {
     const id = anchor.dataset.linkId
     if (!(folder && group && panel && img && id)) return
 
-    event.stopPropagation()
     anchor.setPointerCapture?.(event.pointerId)
 
     const bounds = panel.getBoundingClientRect()
     const iconBounds = img.getBoundingClientRect()
-    const startX = event.clientX
-    const startY = event.clientY
+    const startX = origin.clientX
+    const startY = origin.clientY
     const eventId = event.pointerId
     let ghost: HTMLDivElement | undefined
     let moved = false
@@ -140,6 +239,8 @@ export function startFolderAppDrag(event: PointerEvent): void {
             void linksUpdate({ moveOutFolder: { ids: [id!], group: group!.dataset.group ?? '' } })
         }
     }
+
+    if (event.type === 'pointermove') move(event)
 }
 
 function isOutsideFolder(bounds: DOMRect, { x, y }: { x: number; y: number }): boolean {
@@ -154,6 +255,7 @@ export function startDrag(event: PointerEvent): void {
     if (event.button > 0) {
         return
     }
+    if (event.pointerType === 'touch' && !event.isPrimary) return
 
     if (event.type === 'pointerdown') {
         beforeStartDrag(event, type)
@@ -161,6 +263,7 @@ export function startDrag(event: PointerEvent): void {
     }
 
     ids = []
+    dragPointerId = event.pointerId
     coords = []
     initids = []
     lastdropAreas = []
@@ -296,13 +399,9 @@ export function startDrag(event: PointerEvent): void {
     document.dispatchEvent(new Event('remove-select-all'))
     dragAnimationFrame = globalThis.requestAnimationFrame(deplaceDraggedElem)
 
-    if (event.pointerType === 'touch') {
-        document.documentElement.addEventListener('touchmove', moveDrag, { passive: false })
-        document.documentElement.addEventListener('touchend', endDrag, { passive: false })
-        document.documentElement.addEventListener('touchcancel', endDrag, { passive: false })
-    } else {
-        document.documentElement.addEventListener('pointermove', moveDrag)
-        document.documentElement.addEventListener('pointerup', endDrag)
+    document.documentElement.addEventListener('pointermove', moveDrag)
+    document.documentElement.addEventListener('pointerup', endDrag)
+    if (event.pointerType !== 'touch') {
         document.documentElement.addEventListener('pointerleave', endDrag)
     }
     document.documentElement.addEventListener('pointercancel', endDrag)
@@ -320,6 +419,11 @@ function beforeStartDrag(event: PointerEvent, type: 'mini' | 'link'): void {
         return
     }
 
+    if (event.pointerType === 'touch') {
+        waitForTouchDrag(event, target, startDrag)
+        return
+    }
+
     if (event.target instanceof Element) {
         event.target.setPointerCapture?.(event.pointerId)
     }
@@ -329,7 +433,7 @@ function beforeStartDrag(event: PointerEvent, type: 'mini' | 'link'): void {
     target?.addEventListener('pointercancel', pointerDeadzone)
 
     function pointerDeadzone(event: PointerEvent): void {
-        const precision = event.pointerType === 'touch' ? 7 : 14
+        const precision = 14
         const ox = Math.abs(startX - event.clientX)
         const oy = Math.abs(startY - event.clientY)
 
@@ -353,7 +457,8 @@ function beforeStartDrag(event: PointerEvent, type: 'mini' | 'link'): void {
     }
 }
 
-function moveDrag(event: TouchEvent | PointerEvent): void {
+function moveDrag(event: PointerEvent): void {
+    if (event.pointerId !== dragPointerId) return
     const { x, y } = getPosFromEvent(event)
 
     dx = x - cox
@@ -540,20 +645,18 @@ function applyDragChangeParent(id: string, type: DropType): void {
     }, dropDelay)
 }
 
-function endDrag(event: Event): void {
+function endDrag(event: PointerEvent): void {
+    if (event.pointerId !== dragPointerId) return
     event.preventDefault()
     preventClickAfterDrag()
 
     document.documentElement.removeEventListener('pointermove', moveDrag)
     document.documentElement.removeEventListener('pointerup', endDrag)
     document.documentElement.removeEventListener('pointerleave', endDrag)
-    document.documentElement.removeEventListener('touchmove', moveDrag)
-    document.documentElement.removeEventListener('touchend', endDrag)
-    document.documentElement.removeEventListener('touchcancel', endDrag)
     document.documentElement.removeEventListener('pointercancel', endDrag)
 
-    if (event.type === 'pointerup' || event.type === 'touchend') {
-        moveOverEmptySpace(getPosFromEvent(event as TouchEvent | PointerEvent))
+    if (event.type === 'pointerup') {
+        moveOverEmptySpace(getPosFromEvent(event))
     }
 
     const type = findTypeFromElement(blocks.get(draggedId))
@@ -562,9 +665,9 @@ function endDrag(event: Event): void {
     const block = blocks.get(draggedId)
     const coord = coords[newIndex]
 
-    const cancelled = event.type === 'pointercancel' || event.type === 'touchcancel'
+    const cancelled = event.type === 'pointercancel'
     const isDroppable = !cancelled && !!document.querySelector('.drop-source')
-    const position = getPosFromEvent(event as TouchEvent | PointerEvent)
+    const position = getPosFromEvent(event)
     const outOfFolder = !cancelled && folderBounds !== undefined && isOutsideFolder(folderBounds, position)
     const targetIdIsLink = targetId.startsWith('links') && targetId.length === 11
     const toFolder = isDroppable && targetIdIsLink
@@ -769,12 +872,7 @@ function isDraggingOver({ x, y }: { x: number; y: number }): [DropArea, string, 
     }
 }
 
-function getPosFromEvent(event: TouchEvent | PointerEvent): { x: number; y: number } {
-    if ('touches' in event) {
-        const touch = event.touches[0] ?? event.changedTouches[0]
-        return { x: touch.clientX, y: touch.clientY }
-    }
-
+function getPosFromEvent(event: PointerEvent): { x: number; y: number } {
     return { x: event.clientX, y: event.clientY }
 }
 

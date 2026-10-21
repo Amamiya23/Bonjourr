@@ -185,7 +185,7 @@
 .link {
     transition: transform 0.2s var(--in-out-bounce), opacity 0.1s var(--in-out-bounce), filter 0.06s;
     width: var(--block-size);
-    touch-action: none;
+    touch-action: manipulation;
 }
 
 .link .link-icon,
@@ -694,6 +694,17 @@
 }
 
 /* Links drag and drop */
+
+#linkblocks .link.drag-ready .link-icon,
+#linkblocks .folder-app.drag-ready img {
+    transform: scale(0.96);
+    outline: 2px solid rgb(var(--accent-color) / 0.7);
+    outline-offset: 3px;
+}
+
+#link-mini .link-title.drag-ready {
+    outline: 2px solid rgb(var(--accent-color) / 0.7);
+}
 
 .drag-layout {
     position: fixed;

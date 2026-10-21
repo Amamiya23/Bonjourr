@@ -56,9 +56,88 @@
 
     #interface {
         padding-bottom: 77px;
+        padding-inline: 16px;
         display: flex;
         flex-direction: column;
         justify-content: space-around;
+    }
+
+    /* Four stable home-screen columns, including when a folder spans two cells. */
+    #interface {
+        --links-grid-gap: clamp(8px, 2.5vw, 14px);
+        --links-grid-width: 440px;
+    }
+
+    #linkblocks:is(.large, .medium, .small) {
+        --icon-size: clamp(44px, 14vw, 60px);
+        --row-gap: 14px;
+    }
+
+    #linkblocks:is(.large, .medium, .small) .link-group:not(.in-folder):not(.in-drag) .link-list,
+    #linkblocks:is(.large, .medium, .small) .link-group:not(.in-folder):not(.in-drag) .link-list:has(.large-folder) {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    #linkblocks:is(.large, .medium, .small) .link .link-elem-title {
+        margin-top: 6px;
+        font-size: clamp(12px, 3.2vw, 14px);
+    }
+
+    #linkblocks:is(.large, .medium, .small) .large-folder .link-icon {
+        padding: 6px;
+        gap: 4px;
+        border-radius: 22px;
+    }
+
+    #linkblocks:is(.large, .medium, .small) .large-folder .folder-app,
+    #linkblocks:is(.large, .medium, .small) .large-folder .folder-more {
+        padding: 2px;
+    }
+
+    #linkblocks:is(.large, .medium, .small) .large-folder .folder-app img {
+        width: 100%;
+    }
+
+    #interface.compact #searchbar {
+        height: 44px;
+        font-size: max(16px, 1.1em);
+    }
+
+    #interface:has(#linkblocks.with-groups:not(.hidden)):not(.move-edit) {
+        padding-bottom: calc(12rem + env(safe-area-inset-bottom));
+    }
+
+    #interface:not(.move-edit) #linkblocks #link-mini {
+        padding: 4px;
+        border: 1px solid var(--color-border);
+        border-radius: 20px;
+        background-color: rgb(var(--color-param) / 0.88);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        text-shadow: none;
+    }
+
+    #interface:not(.move-edit) #link-mini > div {
+        gap: 2px;
+        padding: 0;
+        scrollbar-width: none;
+    }
+
+    #interface:not(.move-edit) #link-mini .link-title {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 6px 12px;
+        border-radius: 16px;
+        box-sizing: border-box;
+        color: var(--color-text);
+    }
+
+    #interface:not(.move-edit) #link-mini .link-title.selected-group {
+        background-color: rgb(var(--accent-color) / 0.16);
+        border-color: transparent;
     }
 
     body #interface.pushed {

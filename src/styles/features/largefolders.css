@@ -53,7 +53,7 @@
     box-sizing: border-box;
     background: transparent;
     color: inherit;
-    touch-action: none;
+    touch-action: manipulation;
     cursor: pointer;
     transition: background-color 0.15s, transform 0.15s var(--out-cubic);
 }

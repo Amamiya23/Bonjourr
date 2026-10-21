@@ -58,6 +58,9 @@ export function openContextMenu(event: Event): void {
 
     const target = event.target as HTMLElement
 
+    // Touch icons decide between dragging and editing when the long press ends.
+    if (event.type === 'touchstart' && target.closest('.drag-ready, .dragging, .extracting-app')) return
+
     eventLocation = {
         widgets: {
             link: !!target.closest('#linkblocks'),
@@ -289,9 +292,9 @@ queueMicrotask(() => {
             }
         })
 
-        document?.addEventListener('touchend', () => {
-            handleLongPress.cancel()
-        })
+        for (const event of ['touchmove', 'touchend', 'touchcancel']) {
+            document.addEventListener(event, () => handleLongPress.cancel())
+        }
 
         globalThis.addEventListener('resize', closeContextMenu)
     }
