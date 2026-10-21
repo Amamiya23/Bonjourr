@@ -16,7 +16,7 @@
         "cloud:account": "deno run --allow-read=.cloud --allow-write=.cloud --allow-net ./tasks/account-setup.ts",
         "cloud:secrets": "deno run --allow-read=.cloud --allow-write=.cloud ./tasks/cloud-secrets.ts",
         "test": "deno test --allow-read --allow-env --reporter=dot",
-        "types": "deno check src/ tasks/ tests/ && deno check --config worker/deno.json --sloppy-imports worker/index.ts worker/webdav.test.ts",
+        "types": "deno check src/ tasks/ tests/ && deno check --config worker/deno.json --sloppy-imports worker/index.ts worker/webdav.test.ts worker/database.test.ts",
         "format": "deno fmt",
         "app": "docker compose -f docker/compose.yaml up",
         "archive": "deno task archive:build && deno task archive:run",

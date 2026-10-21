@@ -1,4 +1,4 @@
-import { CLOUD_MAX_BODY } from '../../shared/cloud.ts'
+import { CLOUD_MAX_BODY, DEFAULT_CLOUD_SERVER } from '../../shared/cloud.ts'
 import { fetchWithTimeout } from '../../shared/network.ts'
 import type { CloudConnection } from '../../shared/cloud.ts'
 
@@ -16,7 +16,8 @@ export function cloudServer(value: string): string {
     if (url.username || url.password || url.search || url.hash || !['', '/'].includes(url.pathname)) {
         throw new Error('请输入服务端根地址，不要填写路径或登录信息。')
     }
-    return url.origin
+    // Keep existing installations on the custom domain, including saved Worker URLs.
+    return url.origin === 'https://bonjourr-cloud.zjc020118.workers.dev' ? DEFAULT_CLOUD_SERVER : url.origin
 }
 
 export async function cloudFetch(

@@ -6,6 +6,7 @@ import { cloudFetch, cloudJson } from './cloud-api.ts'
 import { connectAccount, defaultAccountServer } from './cloud-account.ts'
 import type { AccountConfig } from './cloud-account.ts'
 import { adoptCloud, cloudStatus, initializeCloud, syncCloudNow } from './cloud-sync.ts'
+import { cloudDevices } from './cloud-devices.ts'
 
 export function cloudSettings(): void {
     onSettingsLoad(async () => {
@@ -121,37 +122,7 @@ export function cloudSettings(): void {
                 location.reload()
             }
         })
-        on('cloud-devices-refresh', async () => {
-            const current = await connection()
-            const devices = await cloudJson<{ id: string; name: string; owner: number; revoked_at?: string }[]>(
-                current,
-                'devices',
-            )
-            const container = document.getElementById('cloud-devices')!
-            container.replaceChildren()
-            for (const device of devices.filter((item) => !item.revoked_at)) {
-                const row = document.createElement('div')
-                row.className = 'wrapper'
-                const label = document.createElement('span')
-                label.textContent = `${device.name}${device.id === current.deviceId ? '（此设备）' : ''}`
-                row.append(label)
-                if (device.id !== current.deviceId) {
-                    const button = document.createElement('button')
-                    button.className = 'param-btn'
-                    button.type = 'button'
-                    button.textContent = '撤销授权'
-                    button.addEventListener('click', () => {
-                        void run(async () => {
-                            if (!confirm(`撤销“${device.name}”的访问权限？`)) return
-                            await cloudFetch(current, `devices/${device.id}`, { method: 'DELETE' })
-                            row.remove()
-                        })
-                    })
-                    row.append(button)
-                }
-                container.append(row)
-            }
-        })
+        cloudDevices(run)
         let historyBefore: number | undefined
         const loadHistory = async (more = false): Promise<void> => {
             const current = await connection()
@@ -395,18 +366,20 @@ function updateConnected(connection?: CloudConnection): void {
     const name = document.getElementById('cloud-account-name')
     const description = document.getElementById('cloud-account-description')
     const state = document.getElementById('cloud-account-state')
+    const avatar = document.getElementById('cloud-account-avatar')
+    const role = document.getElementById('cloud-account-role')
     if (info) {
         info.title = connection ? new URL(connection.url).host : ''
         info.classList.toggle('is-connected', connected)
     }
     if (name) {
-        name.textContent = connected ? `${connection.username}${connection.admin ? ' · 管理员' : ''}` : 'Bonjourr 云端'
+        name.textContent = connected ? connection.username ?? 'Bonjourr 账号' : 'Bonjourr 云端'
     }
+    if (avatar) avatar.textContent = connected ? Array.from(connection.username ?? 'B')[0].toUpperCase() : 'B'
+    if (role) role.hidden = !connected || !connection.admin
     if (description) {
         description.textContent = connected
-            ? connection.lastSync
-                ? `上次同步 ${new Date(connection.lastSync).toLocaleString()}`
-                : '已连接，等待首次同步'
+            ? `${connection.name} · ${new URL(connection.url).host}`
             : '登录后跨设备同步设置与快捷链接'
     }
     if (state) {
@@ -426,6 +399,8 @@ function updateConnected(connection?: CloudConnection): void {
     const ready = connected && !!connection?.baseline?.initialized
     const actions = document.getElementById('cloud-ready-actions')
     if (actions) actions.hidden = !ready
+    const overview = document.getElementById('cloud-sync-overview')
+    if (overview) overview.hidden = !connected && !document.getElementById('cloud-status')?.textContent
     const setup = document.querySelector<HTMLDetailsElement>('#cloud-setup')
     if (setup && setup.dataset.ready !== String(ready)) {
         setup.open = !ready

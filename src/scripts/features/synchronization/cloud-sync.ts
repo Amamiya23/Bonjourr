@@ -6,6 +6,7 @@ import {
     applyCloudData,
     captureCloudData,
     overlayCloudRecords,
+    recoverCloudFolders,
     uploadCloudMedia,
 } from './cloud-data.ts'
 import { cloudJson, CloudRequestError } from './cloud-api.ts'
@@ -18,6 +19,8 @@ let failures = 0
 let retryAt = 0
 
 export function cloudStatus(message: string, state: 'pending' | 'success' | 'error' = 'pending'): void {
+    const overview = document.getElementById('cloud-sync-overview')
+    if (overview && message) overview.hidden = false
     const element = document.getElementById('cloud-status')
     if (element) {
         element.textContent = message
@@ -87,6 +90,7 @@ export async function initializeCloud(): Promise<void> {
         if (!connection?.owner) throw new Error('请先登录。')
         const remote = validateCloudState(await cloudJson<CloudState>(connection, 'state'))
         if (remote.initialized) throw new Error('云端已有内容，请采用云端内容后再修改。')
+        await recoverCloudFolders()
         const current = await captureCloudData()
         await uploadCloudMedia(connection, current)
         connection.baseline = remote

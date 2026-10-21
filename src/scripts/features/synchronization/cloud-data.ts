@@ -15,6 +15,7 @@ import {
 import type { CloudConnection, CloudMedia, CloudRecord, CloudState } from '../../shared/cloud.ts'
 import { backgroundCacheUrl, createBackup, readBackupAsset, readBackupIcon } from './backup.ts'
 import { cloudFetch, CloudRequestError } from './cloud-api.ts'
+import { isLink } from '../links/helpers.ts'
 import type { Local } from '../../../types/local.ts'
 import type { Sync } from '../../../types/sync.ts'
 
@@ -24,6 +25,34 @@ const SHARED_LOCAL = ['weatherApiKey', 'weatherApiOrigin', 'backgroundCompressFi
 export interface CloudCapture {
     records: Record<string, string>
     files: Map<string, Blob>
+}
+
+export async function recoverCloudFolders(): Promise<void> {
+    const settings = await storage.sync.get()
+    const links = Object.values(settings).filter(isLink)
+    const folders = new Set(links.filter((link) => link.folder).map((link) => link._id))
+    const group = settings.linkgroups.groups[0] ?? 'default'
+    let order = Math.max(-1, ...links.filter((link) => link.parent === group).map((link) => link.order)) + 1
+    const recovered: Partial<Sync> = {}
+    for (const link of links) {
+        const parent = link.parent
+        if (
+            typeof parent !== 'string' || !parent.startsWith('links') || folders.has(parent) ||
+            settings[parent] !== undefined
+        ) continue
+        // Old imports can retain children of a deleted folder. Restore the folder
+        // before the first snapshot so those links remain reachable on every device.
+        recovered[parent] = {
+            _id: parent,
+            parent: group,
+            folder: true,
+            size: 'large',
+            title: '恢复的文件夹',
+            order: order++,
+        }
+        folders.add(parent)
+    }
+    if (Object.keys(recovered).length) await storage.sync.set(recovered)
 }
 
 export async function captureCloudData(): Promise<CloudCapture> {

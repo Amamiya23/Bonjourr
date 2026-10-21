@@ -3,6 +3,8 @@ import '../init.ts'
 import { SYNC_DEFAULT } from '../../src/scripts/defaults.ts'
 import { storage } from '../../src/scripts/storage.ts'
 import { cloudAccountAccess, connectAccount } from '../../src/scripts/features/synchronization/cloud-account.ts'
+import { cloudServer } from '../../src/scripts/features/synchronization/cloud-api.ts'
+import { DEFAULT_CLOUD_SERVER } from '../../src/scripts/shared/cloud.ts'
 import type { CloudConnection } from '../../src/scripts/shared/cloud.ts'
 
 const account: CloudConnection = {
@@ -68,6 +70,32 @@ Deno.test('Logging in again preserves same-account offline changes and pending r
         assertEquals(saved.token, 'b'.repeat(64))
         assertEquals((await storage.sync.get()).tabtitle, 'Offline edit')
         assertEquals(JSON.stringify(saved).includes('private-password'), false)
+    }))
+
+Deno.test('Saved Worker connections use the custom domain and preserve pending local changes', () =>
+    fixture(async () => {
+        const pending = { id: crypto.randomUUID(), changes: [] }
+        const connection = {
+            ...account,
+            url: 'https://bonjourr-cloud.zjc020118.workers.dev',
+            baseline: { initialized: true, records: [] },
+            pending,
+        }
+        await storage.local.set({ cloud: connection, syncType: 'cloud' })
+        await storage.sync.set({ tabtitle: 'Offline edit' })
+        globalThis.fetch = ((url, init) => {
+            assertEquals(String(url), `${DEFAULT_CLOUD_SERVER}/api/auth/me`)
+            assertEquals(new Headers(init?.headers).get('Authorization'), `Bearer ${account.token}`)
+            return Promise.resolve(Response.json(account))
+        }) as typeof fetch
+        await cloudAccountAccess(await storage.local.get())
+        const saved = (await storage.local.get('cloud')).cloud!
+        assertEquals(saved.url, DEFAULT_CLOUD_SERVER)
+        assertEquals(saved.token, account.token)
+        assertEquals(saved.pending, pending)
+        assertEquals(saved.baseline, connection.baseline)
+        assertEquals((await storage.sync.get()).tabtitle, 'Offline edit')
+        assertEquals(cloudServer('https://cloud.example'), 'https://cloud.example')
     }))
 
 Deno.test('Switching accounts clears the previous account cache before opening an empty workspace', () =>

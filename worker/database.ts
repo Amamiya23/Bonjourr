@@ -54,6 +54,28 @@ export function parseChanges(value: unknown): CloudChange[] {
     })
 }
 
+function parentFailure(state: CloudState, changes: CloudChange[]): string {
+    const records = new Map(
+        state.records.filter((record) => !record.deleted).map((record) => [record.key, record.json!]),
+    )
+    for (const change of changes) {
+        if (change.deleted) records.delete(change.key)
+        else records.set(change.key, change.json!)
+    }
+    const groups: unknown = JSON.parse(records.get('sync/linkgroups/groups') ?? '[]')
+    const parents = new Set<unknown>(['', 'default', ...(Array.isArray(groups) ? groups : [])])
+    const links = [...records].filter(([key]) => key.startsWith('sync/')).map(([key, json]) => ({
+        key,
+        value: JSON.parse(json),
+    })).filter(({ value }) => value && typeof value._id === 'string')
+    for (const { value } of links) if (value.folder === true || value.folder === 1) parents.add(value._id)
+    const orphan = links.find(({ value }) => !parents.has(value.parent ?? ''))
+    if (!orphan) return '快捷链接的父级关系校验失败，本次修改尚未写入。'
+    const title = typeof orphan.value.title === 'string' ? orphan.value.title.slice(0, 80) : orphan.key
+    const parent = String(orphan.value.parent).slice(0, 80)
+    return `快捷链接“${title}”所属的文件夹或分组“${parent}”不存在，本次修改尚未写入。`
+}
+
 export async function commitChanges(
     env: AccountEnv,
     deviceId: string,
@@ -108,7 +130,7 @@ export async function commitChanges(
         env.DB.prepare(`INSERT OR REPLACE INTO account_write_guard VALUES (?, NOT EXISTS (
             SELECT 1 FROM account_records child WHERE child.account_id = ? AND child.deleted = 0 AND child.key LIKE 'sync/%'
             AND json_type(child.json, '$._id') = 'text'
-            AND COALESCE(json_extract(child.json, '$.parent'), 'default') != 'default'
+            AND COALESCE(json_extract(child.json, '$.parent'), '') NOT IN ('', 'default')
             AND NOT EXISTS (SELECT 1 FROM account_records folder WHERE folder.account_id = child.account_id AND folder.deleted = 0
                 AND json_extract(folder.json, '$._id') = json_extract(child.json, '$.parent')
                 AND json_extract(folder.json, '$.folder') = 1)
@@ -132,6 +154,13 @@ export async function commitChanges(
             throw new HttpError(409, '清空全部快捷链接需要在界面中明确确认。')
         }
         if (String(error).includes('CHECK constraint failed')) {
+            const state = await readState(env)
+            if (initialize && state.initialized) throw new HttpError(409, '云端已完成初始化，请采用云端内容后再修改。')
+            if (!initialize && !state.initialized) throw new HttpError(409, '云端尚未初始化，请先上传完整的本机内容。')
+            const revisions = new Map(state.records.map((record) => [record.key, record.revision]))
+            if (changes.every((change) => (revisions.get(change.key) ?? 0) === change.baseRevision)) {
+                throw new HttpError(409, parentFailure(state, changes))
+            }
             throw new HttpError(409, '云端内容已变化，请重新同步；本次修改尚未写入。')
         }
         throw error

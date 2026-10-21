@@ -44,9 +44,12 @@
 
 <div class="param account-settings" id="account-settings">
     <div id="cloud-connection-info" class="cloud-account-summary" role="status" aria-live="polite">
-        <span class="cloud-account-avatar" aria-hidden="true">B</span>
+        <span id="cloud-account-avatar" class="cloud-account-avatar" aria-hidden="true">B</span>
         <span class="cloud-account-copy">
-            <strong id="cloud-account-name">Bonjourr 云端</strong>
+            <span class="cloud-account-heading">
+                <strong id="cloud-account-name">Bonjourr 云端</strong>
+                <span id="cloud-account-role" class="cloud-account-role" hidden>管理员</span>
+            </span>
             <small id="cloud-account-description">登录后跨设备同步设置与快捷链接</small>
         </span>
         <span id="cloud-account-state" class="cloud-account-state">未登录</span>
@@ -69,7 +72,7 @@
                     <summary>服务器与设备</summary>
                     <div class="personal-field">
                         <label for="cloud-server">云端地址</label>
-                        <input id="cloud-server" type="url" placeholder="https://your-server.workers.dev" required />
+                        <input id="cloud-server" type="url" placeholder="https://bonjourr.telyra.top" required />
                     </div>
                     <div class="wrapper">
                         <label for="cloud-device-name">设备名称</label>
@@ -81,13 +84,16 @@
                     <button id="cloud-login-submit" type="submit" class="param-btn btn-primary">登录</button>
                 </div>
             </div>
-            <small id="cloud-status" class="personal-status" role="status" aria-live="polite"></small>
         </form>
-        <div id="cloud-ready-actions" class="personal-actions" data-cloud-connected hidden>
-            <button id="cloud-sync-now" type="button" class="param-btn btn-primary">立即同步</button>
+        <div id="cloud-sync-overview" class="cloud-sync-overview" hidden>
+            <small id="cloud-status" class="personal-status" role="status" aria-live="polite"></small>
+            <div id="cloud-ready-actions" data-cloud-connected hidden>
+                <button id="cloud-sync-now" type="button" class="param-btn btn-primary">立即同步</button>
+            </div>
         </div>
         <details id="cloud-setup" data-cloud-connected hidden>
             <summary>导入与恢复</summary>
+            <p class="cloud-note">首次使用可上传本机内容；已有云端内容时，可恢复到此设备。</p>
             <div class="personal-actions">
                 <button id="cloud-adopt" type="button" class="param-btn">采用云端内容</button>
                 <button id="cloud-initialize" type="button" class="param-btn" data-cloud-owner
@@ -101,20 +107,17 @@
                 <button id="cloud-confirm-clear" type="button" class="param-btn">确认清空</button>
             </div>
         </div>
-        <details data-cloud-connected hidden>
-            <summary>设备</summary>
-            <div data-cloud-owner hidden>
-                <div class="personal-actions">
-                    <button id="cloud-devices-refresh" type="button" class="param-btn">查看设备</button>
-                </div>
-                <div id="cloud-devices"></div>
+        <details id="cloud-devices-section" data-cloud-connected hidden>
+            <summary>设备管理</summary>
+            <div class="cloud-section-toolbar">
+                <p class="cloud-note">管理已登录的设备，名称可随时修改。</p>
+                <button id="cloud-devices-refresh" type="button" class="param-btn inline-btn">刷新</button>
             </div>
-            <div class="personal-actions">
-                <button id="cloud-disconnect" type="button" class="param-btn btn-red">退出登录</button>
-            </div>
+            <small id="cloud-devices-status" class="personal-status" role="status" aria-live="polite"></small>
+            <ul id="cloud-devices" class="cloud-device-list" aria-label="已登录设备"></ul>
         </details>
         <details data-cloud-connected hidden>
-            <summary>修改密码</summary>
+            <summary>账号安全</summary>
             <form id="cloud-password-form" class="personal-form">
                 <div class="personal-field">
                     <label for="cloud-current-password">当前密码</label>
@@ -126,11 +129,11 @@
                     <input id="cloud-new-password" type="password" autocomplete="new-password" minlength="12"
                         maxlength="128" placeholder="至少 12 个字符" required />
                 </div>
-                <div class="personal-submit"><button type="submit" class="param-btn btn-primary">保存</button></div>
+                <div class="personal-submit"><button type="submit" class="param-btn btn-primary">更新密码</button></div>
             </form>
         </details>
         <details data-cloud-admin hidden>
-            <summary>管理</summary>
+            <summary>管理设置</summary>
             <div class="wrapper">
                 <label for="cloud-registration-open">允许注册</label>
                 <input id="cloud-registration-open" type="checkbox" class="switch" disabled />
@@ -142,8 +145,46 @@
             <div id="cloud-history"></div>
             <button id="cloud-history-more" type="button" class="param-btn" hidden>更早的记录</button>
         </details>
+        <div class="cloud-account-footer" data-cloud-connected hidden>
+            <button id="cloud-disconnect" type="button" class="param-btn inline-btn btn-red">退出登录</button>
+        </div>
     </div>
 </div>
+
+<template id="cloud-device-template">
+    <li class="cloud-device">
+        <div class="cloud-device-info">
+            <span class="cloud-device-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="12" rx="2"></rect>
+                    <path d="M8 21h8M12 16v5"></path>
+                </svg>
+            </span>
+            <span class="cloud-device-copy">
+                <span class="cloud-device-heading">
+                    <strong class="cloud-device-name"></strong>
+                    <span class="cloud-device-current" hidden>此设备</span>
+                </span>
+                <small class="cloud-device-meta"></small>
+            </span>
+        </div>
+        <div class="cloud-device-actions">
+            <button type="button" class="param-btn inline-btn" data-action="rename">重命名</button>
+            <button type="button" class="param-btn inline-btn btn-red" data-action="revoke">撤销授权</button>
+        </div>
+        <form class="personal-form cloud-device-editor" hidden>
+            <label class="cloud-device-editor-label">设备名称
+                <input type="text" maxlength="80" required autocomplete="off" />
+            </label>
+            <div class="personal-actions">
+                <button type="button" class="param-btn input-btn" data-action="cancel">取消</button>
+                <button type="submit" class="param-btn btn-primary">保存</button>
+            </div>
+        </form>
+        <small class="personal-status cloud-device-status" role="status" aria-live="polite"></small>
+    </li>
+</template>
 
 <div class="settings-title" id="general_title">
     <h2 class="trn">General</h2>

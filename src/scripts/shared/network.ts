@@ -30,7 +30,12 @@ export async function fetchWithTimeout(
             redirect: 'error',
             credentials: 'omit',
         })
-        if (!response.body) return response
+        // Chrome can expose an empty stream for HEAD and null-body responses.
+        // Rebuilding a 204/205/304 response with a Blob throws a TypeError.
+        if (
+            !response.body || options.method?.toUpperCase() === 'HEAD' ||
+            [204, 205, 304].includes(response.status)
+        ) return response
         if (Number(response.headers.get('Content-Length')) > maxBytes) {
             await response.body.cancel()
             throw new Error('服务器响应超过允许的大小。')

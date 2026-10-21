@@ -2,8 +2,8 @@ import { assertEquals, assertRejects } from '@std/assert'
 import '../init.ts'
 import { SYNC_DEFAULT } from '../../src/scripts/defaults.ts'
 import { storage } from '../../src/scripts/storage.ts'
-import { captureCloudData } from '../../src/scripts/features/synchronization/cloud-data.ts'
-import { adoptCloud, syncCloudNow } from '../../src/scripts/features/synchronization/cloud-sync.ts'
+import { captureCloudData, recoverCloudFolders } from '../../src/scripts/features/synchronization/cloud-data.ts'
+import { adoptCloud, initializeCloud, syncCloudNow } from '../../src/scripts/features/synchronization/cloud-sync.ts'
 import { sha256 } from '../../src/scripts/shared/cloud.ts'
 import type { CloudChange, CloudConnection, CloudState } from '../../src/scripts/shared/cloud.ts'
 
@@ -99,6 +99,7 @@ async function fixture(run: (state: Fixture) => Promise<void>): Promise<void> {
                 state.loseResponse = false
                 throw new TypeError('lost response')
             }
+            if (String(_url).endsWith('/api/initialize')) state.state.initialized = true
             return Response.json(state.state)
         }) as typeof fetch
         await run(state)
@@ -117,6 +118,66 @@ Deno.test('A new unadopted device never uploads defaults over cloud data', () =>
         await syncCloudNow()
         assertEquals(state.posts.length, 0)
         assertEquals(state.state.records[0].json, '"Keep remote"')
+    }))
+
+Deno.test('First upload recovers missing folders without changing child links or existing folders', () =>
+    fixture(async (state) => {
+        state.state = { initialized: false, records: [] }
+        const child = {
+            _id: 'linksAliyun',
+            title: '阿里云控制台',
+            url: 'https://example.com',
+            parent: 'linksMissing',
+            order: 0,
+        }
+        const sibling = { ...child, _id: 'linksSibling', title: 'Another link', order: 1 }
+        const folder = { _id: 'linksExisting', parent: '常用', folder: true, title: 'Keep folder', order: 3 }
+        await storage.sync.set({
+            linkgroups: { on: true, selected: '服务器', groups: ['常用', '服务器'], pinned: [], synced: [] },
+            linksAliyun: child,
+            linksSibling: sibling,
+            linksExisting: folder,
+            linksNested: { ...child, _id: 'linksNested', parent: 'linksExisting' },
+        })
+        await initializeCloud()
+        const settings = await storage.sync.get()
+        assertEquals(settings.linksAliyun, child)
+        assertEquals(settings.linksSibling, sibling)
+        assertEquals(settings.linksExisting, folder)
+        assertEquals(settings.linksMissing, {
+            _id: 'linksMissing',
+            parent: '常用',
+            folder: true,
+            size: 'large',
+            title: '恢复的文件夹',
+            order: 4,
+        })
+        const captured = await captureCloudData()
+        assertEquals(
+            Object.fromEntries(state.state.records.map((record) => [record.key, record.json])),
+            captured.records,
+        )
+        await syncCloudNow()
+        assertEquals(state.posts.length, 1)
+    }))
+
+Deno.test('Folder recovery never overwrites an existing non-folder entry or repairs ongoing sync silently', () =>
+    fixture(async (state) => {
+        const existing = {
+            _id: 'linksParent',
+            title: 'Keep link',
+            url: 'https://example.com',
+            parent: 'default',
+            order: 0,
+        }
+        const child = { ...existing, _id: 'linksChild', parent: 'linksParent' }
+        await storage.sync.set({ linksParent: existing, linksChild: child })
+        await recoverCloudFolders()
+        assertEquals((await storage.sync.get()).linksParent, existing)
+        await state.connect()
+        await storage.sync.set({ linksChild: { ...child, parent: 'linksMissing' } })
+        await syncCloudNow()
+        assertEquals((await storage.sync.get()).linksMissing, undefined)
     }))
 
 Deno.test('Unset device connections are not treated as the string undefined', () =>

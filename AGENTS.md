@@ -2,10 +2,8 @@
 
 Bonjourr is a minimalist and customizable "new tab" browser extension.
 
-1. Use **Deno** as its runtime and task runner. Never use `npm` or others. If **Deno** fails at something, stop and ask for help.
-2. Do not try to add dependencies, find a native solution.
-3. Repeat yourself instead of writing difficult or unreadable code.
-4. After code changes, run `deno task format` only on changed files and run `deno task types` once when finished. Do not repeat these checks between edits. Documentation-only or agent-instruction-only changes do not require formatting, type checks, or tests.
+1. Repeat yourself instead of writing difficult or unreadable code.
+2. After code changes, run `deno task format` only on changed files and run `deno task types` once when finished. Do not repeat these checks between edits. Documentation-only or agent-instruction-only changes do not require formatting, type checks, or tests.
 
 ## Testing scope
 

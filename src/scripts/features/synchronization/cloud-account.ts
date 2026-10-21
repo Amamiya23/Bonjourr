@@ -21,7 +21,7 @@ export function defaultAccountServer(): string {
         return location.origin
     }
     return location.protocol === 'https:' && !location.hostname.endsWith('.pages.dev')
-        ? location.origin
+        ? cloudServer(location.origin)
         : DEFAULT_CLOUD_SERVER
 }
 
@@ -106,7 +106,7 @@ export async function cloudAccountAccess(local: Local): Promise<boolean> {
     if (saved?.accountId && saved.expiresAt && saved.expiresAt > Date.now()) {
         try {
             const profile = await cloudJson<Omit<CloudConnection, 'url' | 'token'>>(saved, 'auth/me')
-            const connection = { ...saved, ...profile }
+            const connection = { ...saved, ...profile, url: cloudServer(saved.url) }
             await storage.local.set({ cloud: connection, syncType: 'cloud', cloudCacheAccount: connection.accountId })
             local.cloud = connection
             local.syncType = 'cloud'

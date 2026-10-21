@@ -1,6 +1,7 @@
 import { CLOUD_CHUNK_BYTES, sha256, validCloudMedia } from '../src/scripts/shared/cloud.ts'
 import { authConfig, authenticate, changePassword, login, register, registrationSettings } from './accounts.ts'
 import { accountEnv } from './scope.ts'
+import { renameDevice } from './devices.ts'
 import { commitChanges, parseChanges, readState } from './database.ts'
 import { bodyJson, boundedBody, HttpError } from './http.ts'
 import { backupCloud, backupSettings, restoreCloudBackup, startBackup } from './webdav.ts'
@@ -136,6 +137,7 @@ async function route(request: Request, root: CloudflareEnv, ctx: ExecutionContex
             ).bind(env.accountId, Date.now()).all()).results,
         )
     }
+    if (path.startsWith('devices/') && method === 'PUT') return await renameDevice(request, env, path.slice(8))
     if (path.startsWith('devices/') && method === 'DELETE') {
         const id = path.slice(8)
         if (id === device.id) throw new HttpError(400, '请使用断开连接退出当前设备。')
