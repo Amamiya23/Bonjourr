@@ -200,21 +200,33 @@
     }
 
     aside {
+        --settings-inset: 16px;
         top: 100dvh;
         right: auto;
         left: 0;
         bottom: -100dvh;
         height: 100dvh;
         width: 100%;
-        padding: 0 16px;
+        padding: 0 var(--settings-inset);
         font-size: 14px;
-        border-radius: 20px 20px 0 0;
+        border: none;
+        border-radius: 24px 24px 0 0;
         box-shadow: 0 -16px 48px rgb(0 0 0 / 0.2);
     }
 
     .settings-header {
-        margin-inline: -16px;
-        padding-inline: 16px;
+        top: 25px;
+        min-height: 64px;
+        padding-block: 12px;
+    }
+
+    .settings-header h1 {
+        font-size: 26px;
+    }
+
+    #settings-close {
+        width: 44px;
+        height: 44px;
     }
 
     aside.shown {
@@ -230,7 +242,7 @@
     }
 
     .settings-title {
-        margin: 24px 16px 7px;
+        margin: 24px 4px 10px;
     }
 
     @supports not (min-height: 100dvh) {
@@ -357,7 +369,7 @@ label {
     }
 
     aside .settings-title {
-        margin: 24px 16px 7px;
+        margin: 24px 4px 10px;
     }
 
     aside .wrapper {
@@ -374,6 +386,11 @@ label {
 
     aside .param-btn {
         min-height: 44px;
+    }
+
+    aside input:not(.switch),
+    aside select {
+        font-size: 16px;
     }
 
     .cloud-account-avatar {

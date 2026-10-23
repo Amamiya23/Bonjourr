@@ -7,8 +7,8 @@ aside span {
 }
 
 aside h2 {
-    font-weight: 500;
-    font-size: 13px;
+    font-weight: 600;
+    font-size: 14px;
     line-height: 1.35;
 }
 
@@ -16,10 +16,11 @@ aside h2 {
     display: grid;
     place-items: baseline;
     grid-template-columns: 1fr min-content;
-    margin: 28px 16px 8px;
-    color: var(--color-light-text);
+    align-items: center;
+    margin: 28px 4px 10px;
+    color: var(--color-text);
     /* offset for when section is automatically getting scrolled to */
-    scroll-margin-top: 20px;
+    scroll-margin-top: 12px;
 }
 
 html:dir(rtl) .settings-title {

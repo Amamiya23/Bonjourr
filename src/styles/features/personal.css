@@ -614,7 +614,7 @@ body.potato #sb_container #sb-engine-menu {
 .account-settings {
     display: grid;
     gap: 0;
-    padding: 12px;
+    padding: 16px;
 }
 
 .cloud-account-summary {
@@ -622,40 +622,36 @@ body.potato #sb_container #sb-engine-menu {
     align-items: center;
     gap: 12px;
     min-width: 0;
-    padding: 4px 4px 16px;
+    padding: 4px 0 20px;
 }
 
 .cloud-account-avatar {
     display: grid;
     place-items: center;
-    flex: 0 0 44px;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
     color: #fff;
     background-color: rgb(var(--accent-color));
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28);
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 650;
 }
 
 .cloud-account-copy {
     display: grid;
     flex: 1;
-    gap: 2px;
+    gap: 4px;
     min-width: 0;
     text-align: start;
 }
 
-.cloud-account-copy strong,
-.cloud-account-copy small {
+.cloud-account-copy strong {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-}
-
-.cloud-account-copy strong {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
 }
 
@@ -683,6 +679,7 @@ body.potato #sb_container #sb-engine-menu {
 .cloud-account-copy small {
     color: var(--color-light-text);
     font-size: 12px;
+    line-height: 1.5;
 }
 
 .cloud-account-state {
@@ -692,11 +689,11 @@ body.potato #sb_container #sb-engine-menu {
     color: var(--color-light-text);
     background-color: var(--color-input);
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .cloud-account-summary.is-connected .cloud-account-state {
-    color: rgb(var(--color-green));
+    color: color-mix(in srgb, rgb(var(--color-green)), var(--color-text) 48%);
     background-color: rgb(var(--color-green) / 0.12);
 }
 
@@ -706,7 +703,7 @@ body.potato #sb_container #sb-engine-menu {
 
 aside .personal-form {
     display: grid;
-    gap: 7px;
+    gap: 8px;
     width: 100%;
     min-width: 0;
     padding: 0;
@@ -918,8 +915,37 @@ aside .personal-action-row .personal-actions {
 
 #cloud-account-fields {
     display: grid;
+    gap: 12px;
+    padding-bottom: 0;
+}
+
+.cloud-credentials {
+    padding: 0 12px;
+    border-radius: 12px;
+    background-color: var(--settings-control);
+}
+
+aside .cloud-credentials .personal-field {
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: center;
     gap: 8px;
-    padding-bottom: 12px;
+    min-height: 48px;
+    padding: 0;
+}
+
+aside .cloud-credentials .personal-field + .personal-field {
+    border-top: 0.5px solid var(--settings-separator);
+}
+
+aside .cloud-credentials label {
+    color: var(--color-text);
+    font-size: 13px;
+}
+
+aside .cloud-credentials input {
+    height: 36px;
+    padding-inline: 4px;
+    background-color: transparent;
 }
 
 #cloud-sync .cloud-server-option {
@@ -927,7 +953,9 @@ aside .personal-action-row .personal-actions {
 }
 
 #cloud-sync .cloud-server-option > summary {
-    padding-block: 4px;
+    min-height: 36px;
+    padding: 0 4px;
+    box-sizing: border-box;
     color: var(--color-light-text);
     font-size: 13px;
 }
@@ -955,10 +983,10 @@ aside .cloud-note {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin: 0 4px 12px;
+    margin: 0 0 12px;
     padding: 12px;
     border-radius: 10px;
-    background-color: var(--color-input);
+    background-color: var(--settings-control);
 }
 
 aside .cloud-sync-overview .personal-status {
@@ -1036,7 +1064,7 @@ aside .cloud-section-toolbar .cloud-note {
     height: 36px;
     border-radius: 9px;
     color: var(--color-light-text);
-    background-color: var(--color-input);
+    background-color: var(--settings-control);
 }
 
 .cloud-device-icon svg {
@@ -1121,6 +1149,19 @@ aside .cloud-account-footer .param-btn {
     background-color: transparent;
 }
 
+@media (min-width: 601px) {
+    .cloud-device {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        column-gap: 12px;
+    }
+
+    .cloud-device-editor,
+    .cloud-device-status {
+        grid-column: 1 / -1;
+    }
+}
+
 @media (pointer: coarse) {
     #account-settings .param-btn {
         min-height: 44px;
@@ -1143,11 +1184,13 @@ aside .cloud-account-footer .param-btn {
 }
 
 .account-form-actions {
-    justify-content: flex-end;
+    justify-content: stretch;
 }
 
-.account-form-actions .btn-primary {
-    min-width: 88px;
+aside .account-form-actions .btn-primary {
+    flex: 1;
+    min-height: 40px;
+    font-size: 14px;
 }
 
 .cloud-history-row {

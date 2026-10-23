@@ -1,8 +1,8 @@
 aside hr {
-    width: calc(100% - 24px);
-    margin: 0 12px;
+    width: calc(100% - 32px);
+    margin: 0 16px;
     border: none;
-    border-bottom: 0.5px solid color-mix(in srgb, var(--color-border) 58%, transparent);
+    border-bottom: 0.5px solid var(--settings-separator);
 }
 
 aside .param-textarea {
@@ -19,14 +19,15 @@ aside .param-textarea {
 }
 
 aside .param-btn {
-    min-height: 32px;
-    padding: 0 13px;
+    min-height: 34px;
+    padding: 0 14px;
     color: rgb(var(--accent-color));
     border: none;
     border-radius: 10px;
     font-size: 14px;
-    font-weight: 500;
-    white-space: nowrap;
+    font-weight: 550;
+    white-space: normal;
+    text-align: center;
     background-color: rgb(var(--accent-color) / 0.1);
     display: inline-flex;
     justify-content: center;
@@ -83,13 +84,13 @@ aside .inline-btn {
 }
 
 aside .inline-btn:hover {
-    text-decoration: underline;
+    background-color: rgb(var(--accent-color) / 0.08);
 }
 
 aside .input-btn {
     text-decoration: none;
     color: var(--color-text);
-    background-color: var(--color-input);
+    background-color: var(--settings-control);
 }
 
 aside .input-btn:hover {
@@ -132,8 +133,8 @@ aside button {
 aside select {
     padding-inline-end: 30px;
     background-image:
-        linear-gradient(45deg, transparent 50%, #8e8e93 50%),
-        linear-gradient(135deg, #8e8e93 50%, transparent 50%);
+        linear-gradient(45deg, transparent 50%, var(--color-light-text) 50%),
+        linear-gradient(135deg, var(--color-light-text) 50%, transparent 50%);
     background-position:
         calc(100% - 15px) 50%,
         calc(100% - 10px) 50%;
@@ -150,18 +151,20 @@ html:dir(rtl) aside select {
 aside select option,
 aside select optgroup {
     color: var(--color-text);
-    background-color: var(--color-param);
+    background-color: rgb(var(--color-param));
 }
 
 aside input,
 aside select {
-    height: 34px;
+    height: 36px;
     max-width: 160px;
     width: 100%;
+    min-width: 0;
     padding-inline: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
-    background-color: var(--color-input);
+    background-color: var(--settings-control);
+    font-size: 13px;
 }
 
 @media only screen and (hover: hover) {
@@ -198,6 +201,7 @@ aside .switch {
     display: inline-block;
     height: 31px;
     width: 51px;
+    padding: 0;
     flex-shrink: 0;
     border-radius: 16px;
     background-color: #c7c7cc;
@@ -257,7 +261,7 @@ aside input[type='range'] {
     height: 2.2em;
     -webkit-appearance: none;
     appearance: none;
-    background-color: var(--color-param);
+    background-color: rgb(var(--color-param));
     cursor: grab;
     overflow: visible;
     padding-inline: unset;
@@ -556,12 +560,12 @@ aside form.valid.remove span::after {
 
 .param {
     position: relative;
-    margin-top: 12px;
+    margin-top: 0;
     padding: 0;
-    border: 0.5px solid color-mix(in srgb, var(--color-border) 28%, transparent);
-    border-radius: 12px;
+    border: 0.5px solid color-mix(in srgb, var(--color-border) 22%, transparent);
+    border-radius: 16px;
     background-color: rgb(var(--color-param));
-    box-shadow: 0 1px 1px rgb(0 0 0 / 0.02);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.015);
 }
 
 .param + .param {
@@ -573,13 +577,15 @@ aside form.valid.remove span::after {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    min-height: 46px;
-    padding: 0 12px;
+    min-height: 48px;
+    padding: 2px 16px;
+    box-sizing: border-box;
 }
 
 .wrapper > span {
     display: flex;
     align-items: center;
+    min-width: 0;
 }
 
 .wrapper .tooltip {
@@ -636,4 +642,12 @@ aside form.valid.remove span::after {
 
 .split-range span {
     display: initial;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    aside .param-btn,
+    aside .switch,
+    aside .switch::after {
+        transition: none;
+    }
 }

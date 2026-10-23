@@ -70,3 +70,8 @@
 #show-settings.shown svg {
     transform: rotate(60deg);
 }
+
+body.settings-open #show-settings {
+    visibility: hidden;
+    opacity: 0;
+}

@@ -3,10 +3,12 @@
     position: sticky;
     display: none;
     top: 0;
-    width: 100%;
     padding: 12px 12px 8px;
+    margin-inline: calc(-1 * var(--settings-inset));
+    width: calc(100% + 2 * var(--settings-inset));
+    background-color: var(--color-settings);
     cursor: grab;
-    z-index: 4;
+    z-index: 11;
     box-sizing: border-box;
     transition: transform 0.4s;
 }
