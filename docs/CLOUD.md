@@ -59,6 +59,30 @@
 
 ## 开发与部署
 
+### 日常更新现有实例
+
+在项目根目录运行以下命令。先构建网页版，再部署 Worker 与静态文件；`cloud:deploy` 不会自动构建前端。
+
+```powershell
+deno task cloud:build
+deno task cloud:deploy
+```
+
+部署命令成功后会输出访问地址和版本 ID。当前主站是 <https://bonjourr.telyra.top>，Worker 地址是
+<https://bonjourr-cloud.zjc020118.workers.dev>。刷新页面即可使用新版本。
+
+换电脑或登录过期时，先安装 Deno 和 Node.js，再执行以下命令登录部署账号：
+
+```powershell
+npx --yes wrangler@4.151.2 login
+```
+
+普通前端更新只需构建和部署；新增数据库迁移文件时，才需要在部署前执行 `deno task cloud:migrate`。
+现有实例的日常更新沿用生产密钥，无需重新生成密钥或初始化账号。
+详细步骤见 [Wrangler 官方部署文档](https://developers.cloudflare.com/workers/wrangler/commands/#deploy)。
+
+### 开发与首次部署
+
 如果 D1 数据或整个实例丢失，可以在新实例重新设置 WebDAV 配置，然后在“恢复指定备份文件”中输入 WebDAV
 中的历史快照文件名。恢复流程不依赖原 D1 中的备份列表，也会补回缺失的 R2 媒体。
 

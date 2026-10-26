@@ -1,7 +1,8 @@
 import { getLink, getSelectedIds, isLinkIconType } from './helpers.ts'
 import { closeContextMenu, positionContextMenu } from '../contextmenu.ts'
 import { togglePinGroup } from './groups.ts'
-import { quickLinks } from './index.ts'
+import { linksUpdate, quickLinks } from './index.ts'
+import { copyLink, hasCopiedLink } from './clipboard.ts'
 import { initLogoSearch, prepareLogoSearch, setLogoSearchVisible } from './logo.ts'
 
 import { getComposedPath } from '../../shared/dom.ts'
@@ -81,8 +82,7 @@ export async function populateDialogWithEditLink(
     const dragging = classNames.some((cl) => cl.includes('dragging') || cl.includes('dropping'))
     const group = (container.mini ? linktitle : linkgroup)?.dataset.group ?? ''
 
-    const domfolder = document.querySelector<HTMLElement>('.link-group.in-folder')
-    const folder = domfolder?.dataset?.folder ?? ''
+    const folder = container.folder ? linkgroup?.dataset.folder ?? '' : ''
 
     editStates = {
         group,
@@ -176,6 +176,13 @@ export async function populateDialogWithEditLink(
     // Must be placed after "li?.classList.add('selected')"
     editStates.selected = getSelectedIds()
 
+    const pasteButton = document.getElementById('edit-paste') as HTMLButtonElement
+    const pasteTarget = folder || group || data.linkgroups.selected
+    const canPaste = hasCopiedLink() && !data.linkgroups.synced.includes(group || data.linkgroups.selected) &&
+        !target.addgroup && !target.link && !target.folder && !selectall
+    pasteButton.classList.toggle('on', canPaste)
+    pasteButton.dataset.target = pasteTarget
+
     // Once dialog is populated, calculates its position
     if (!newLinkFromGlobal) {
         positionContextMenu(event)
@@ -224,7 +231,7 @@ function toggleEditInputs(): string[] {
         } else if (target.folder) {
             inputs = ['title', 'folder-size', 'delete', 'apply']
         } else if (target.link) {
-            inputs = ['title', 'url*', 'icon', 'icon-url*', 'delete', 'refresh', 'apply']
+            inputs = ['title', 'url*', 'icon', 'icon-url*', 'copy', 'delete', 'refresh', 'apply']
         } else {
             inputs = ['title', 'url*', 'add']
             inputToFocus = domurl
@@ -238,7 +245,7 @@ function toggleEditInputs(): string[] {
         } else if (selectall) {
             inputs = ['delete', 'unfolder']
         } else if (target.link) {
-            inputs = ['title', 'url*', 'icon', 'icon-url*', 'delete', 'apply', 'unfolder']
+            inputs = ['title', 'url*', 'icon', 'icon-url*', 'copy', 'delete', 'apply', 'unfolder']
         } else {
             inputs = ['title', 'url*', 'add']
             inputToFocus = domurl
@@ -305,7 +312,7 @@ function setSubmitOnEnter(theButton: string): void {
         buttonToSubmit = document.getElementById(theButton ?? 'edit-apply') as HTMLButtonElement
 
         document.getElementById('editlink-form')?.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
+            if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
                 event.preventDefault() // prevent default submit
                 buttonToSubmit.click() // triggers demanded button
             }
@@ -345,9 +352,25 @@ function toggleIconType(iconType: Event | string): void {
     setLogoSearchVisible(iconType === 'auto' || iconType === 'url' || iconType === 'file')
 }
 
-function submitChanges(event: SubmitEvent): void {
+async function submitChanges(event: SubmitEvent): Promise<void> {
     const change = event.submitter?.id
     const { container, target, group, folder, selected, selectall } = editStates
+
+    if (change === 'edit-copy') {
+        event.preventDefault()
+        await copyLink(selected[0])
+        closeContextMenu()
+        return
+    }
+
+    if (change === 'edit-paste') {
+        event.preventDefault()
+        const destination = (event.submitter as HTMLButtonElement).dataset.target
+        if (!destination) return
+        await linksUpdate({ pasteLink: { target: destination } })
+        closeContextMenu()
+        return
+    }
 
     if (change === 'edit-apply') {
         applyLinkChanges('button')

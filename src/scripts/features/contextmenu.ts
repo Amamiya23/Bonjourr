@@ -1,4 +1,6 @@
 import { populateDialogWithEditLink } from './links/edit.ts'
+import { hasCopiedLink } from './links/clipboard.ts'
+import { linksUpdate } from './links/index.ts'
 import { IS_MOBILE, SYSTEM_OS } from '../defaults.ts'
 import { transitioner } from '../utils/transitioner.ts'
 import { debounce } from '../utils/debounce.ts'
@@ -140,6 +142,13 @@ export function openContextMenu(event: Event): void {
         if (!document.querySelector('#linkblocks.hidden')) {
             populateDialogWithAction('add-new-link')
             populateDialogWithAction('openTheseSettings', 'links_title')
+            const group = document.querySelector<HTMLElement>('.link-group:not(.pinned):not(.synced)')
+            const target = group?.dataset.folder || group?.dataset.group
+            if (hasCopiedLink() && target) {
+                const pasteButton = domdialog.querySelector<HTMLButtonElement>('[data-action="paste-link"]')!
+                pasteButton.dataset.target = target
+                populateDialogWithAction('paste-link')
+            }
         }
 
         showTheseElements('#background-actions')
@@ -282,6 +291,17 @@ queueMicrotask(() => {
 
     const addNewLinkButton = domdialog.querySelector<HTMLButtonElement>(`[data-action="add-new-link"]`)
     addNewLinkButton?.addEventListener('click', (event) => populateDialogWithEditLink(event, domdialog, true))
+
+    domdialog.querySelector<HTMLButtonElement>('[data-action="paste-link"]')?.addEventListener(
+        'click',
+        async (event) => {
+            const button = event.currentTarget as HTMLButtonElement
+            const target = button.dataset.target
+            if (!target) return
+            await linksUpdate({ pasteLink: { target } })
+            closeContextMenu()
+        },
+    )
 
     if (SYSTEM_OS === 'ios' || !IS_MOBILE) {
         const handleLongPress = debounce((event: TouchEvent) => {

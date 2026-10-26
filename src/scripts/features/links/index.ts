@@ -2,12 +2,14 @@ import { addGroup, changeGroupTitle, deleteGroup, initGroups, moveGroups, toggle
 import { initBookmarkSync, syncBookmarks } from './bookmarks.ts'
 import { openContextMenu } from '../contextmenu.ts'
 import { storeIconFile } from './fileicons.ts'
+import { getCopiedLink } from './clipboard.ts'
 import { folderClick } from './folders.ts'
 import { startDrag, startFolderAppDrag } from './drag.ts'
 import {
     createTitle,
     getDefaultIcon,
     getLiFromEvent,
+    getLink,
     getLinksInFolder,
     getLinksInGroup,
     isElem,
@@ -74,6 +76,7 @@ type LinksUpdate = {
     row?: string
     groups?: boolean
     addLinks?: AddLinks
+    pasteLink?: { target: string }
     addGroups?: AddGroups
     addFolder?: { ids: string[]; group?: string }
     updateLink?: UpdateLink
@@ -509,6 +512,9 @@ export async function linksUpdate(update: LinksUpdate): Promise<void> {
     if (update.addLinks) {
         data = linkSubmission({ type: 'link', links: update.addLinks }, data)
     }
+    if (update.pasteLink) {
+        data = await pasteLink(update.pasteLink.target, data)
+    }
     if (update.addFolder) {
         data = linkSubmission({ type: 'folder', ...update.addFolder }, data)
     }
@@ -567,6 +573,32 @@ export async function linksUpdate(update: LinksUpdate): Promise<void> {
     }
 
     await storage.sync.set(data)
+}
+
+async function pasteLink(target: string, data: Sync): Promise<Sync> {
+    const clipboard = getCopiedLink()
+    const folder = getLink(data, target)
+    const group = folder?.folder ? folder.parent : target
+
+    if (
+        !clipboard || !group || !data.linkgroups.groups.includes(group) || data.linkgroups.synced.includes(group)
+    ) {
+        return data
+    }
+
+    const copy = clipboard.link
+    const links = folder?.folder ? getLinksInFolder(data, target) : getLinksInGroup(data, target)
+    copy._id = `links${randomString(6)}`
+    copy.parent = target
+    copy.order = (links.at(-1)?.order ?? -1) + 1
+
+    if (clipboard.icon) {
+        await storage.local.set({ [`x-icon-${copy._id}`]: clipboard.icon })
+    }
+
+    data[copy._id] = copy
+    initblocks(data)
+    return data
 }
 
 function linkSubmission(args: SubmitLink | SubmitFolder, data: Sync): Sync {
