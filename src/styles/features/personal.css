@@ -378,7 +378,9 @@ body.potato #sb_container #sb-engine-menu {
     );
 }
 
-#interface.compact:not(.move-edit):has(> #linkblocks:is(.large, .medium, .small):not(.hidden)) > #sb_container {
+#interface.compact:not(.move-edit):has(> #linkblocks:is(.large, .medium, .small):not(.hidden)) > #sb_container,
+#interface.compact:not(.move-edit):has(> #sb_container:not(.hidden)) > #linkblocks:is(.large, .medium, .small):has(.link-group.in-folder) {
+    width: 100%;
     min-width: min(100%, 15em);
     max-width: calc(var(--links-grid-width) * var(--searchbar-scale, 1));
 }
