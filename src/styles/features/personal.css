@@ -322,6 +322,54 @@ body.potato #sb_container #sb-engine-menu {
     max-width: 100%;
 }
 
+#link-scroll {
+    --white-a6: rgba(255, 255, 255, 0.4);
+    --black-a6: rgba(0, 0, 0, 0.4);
+    width: calc(100% + 3em);
+    max-width: calc(100vw - 1em);
+    flex: none;
+    min-width: 0;
+    max-height: 40dvh;
+    padding: 0.5em;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable both-edges;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+}
+
+#link-scroll > .link-group {
+    margin-inline: auto;
+}
+
+@media (hover: hover) {
+    #link-scroll:hover,
+    #link-scroll:focus-within,
+    #link-scroll.scrolling {
+        scrollbar-color: var(--white-a6) transparent;
+    }
+
+    [data-theme='light'] #link-scroll:hover,
+    [data-theme='light'] #link-scroll:focus-within,
+    [data-theme='light'] #link-scroll.scrolling {
+        scrollbar-color: var(--black-a6) transparent;
+    }
+}
+
+@media (hover: none) {
+    #link-scroll {
+        scrollbar-width: auto;
+        scrollbar-color: auto;
+    }
+}
+
+#interface.move-edit #link-scroll {
+    max-height: none !important;
+    overflow: visible;
+}
+
 /* Home-screen icons keep the same columns even when the last row is incomplete. */
 #interface {
     --links-grid-gap: clamp(0.5em, 2vw, 1.5em);
@@ -518,6 +566,12 @@ body.potato #sb_container #sb-engine-menu {
     margin-inline: auto;
     padding: 0.5em;
     box-sizing: border-box;
+}
+
+#interface:not(.move-edit) #linkblocks.scroll-compact #link-mini {
+    position: static;
+    max-width: 100%;
+    margin-inline: auto;
 }
 
 #interface:not(.move-edit) #link-mini > div {

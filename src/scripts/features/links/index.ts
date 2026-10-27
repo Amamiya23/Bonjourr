@@ -108,8 +108,92 @@ type LinksInit = {
 }
 
 const domlinkblocks = document.getElementById('linkblocks') as HTMLDivElement
+const domlinkscroll = document.getElementById('link-scroll') as HTMLDivElement
 let initIconList: [HTMLImageElement, string][] = []
 let selectallTimer: ReturnType<typeof setTimeout>
+let scrollInitialized = false
+let scrollActivityTimer: ReturnType<typeof setTimeout>
+
+export function resetLinkScroll(): void {
+    domlinkscroll.scrollTop = 0
+}
+
+function initLinkScroll(): void {
+    if (scrollInitialized) return
+    scrollInitialized = true
+
+    const layout = document.getElementById('interface') as HTMLElement
+    const widgets = ['time', 'main', 'sb_container', 'quotes_container']
+        .map((id) => document.getElementById(id))
+        .filter((element): element is HTMLElement => !!element)
+    let frame = 0
+
+    const updateHeight = (): void => {
+        frame = 0
+        const layoutStyle = getComputedStyle(layout)
+        const scrollStyle = getComputedStyle(domlinkscroll)
+        const layoutRect = layout.getBoundingClientRect()
+        const height = globalThis.visualViewport?.height ?? globalThis.innerHeight
+        const padding = (Number.parseFloat(layoutStyle.paddingTop) || 0) +
+            (Number.parseFloat(layoutStyle.paddingBottom) || 0)
+        const visible = widgets.filter((element) => element.getClientRects().length > 0)
+        const scrollTop = domlinkscroll.getBoundingClientRect().top
+        const scrollBottom = domlinkscroll.getBoundingClientRect().bottom
+        const rows = new Map<string, number>()
+
+        for (const widget of visible) {
+            const rect = widget.getBoundingClientRect()
+            const key = layoutStyle.display === 'grid' ? getComputedStyle(widget).gridArea : widget.id
+            rows.set(key, Math.max(rows.get(key) ?? 0, rect.height))
+        }
+
+        const below = visible.reduce((space, widget) => {
+            const rect = widget.getBoundingClientRect()
+            return rect.top >= scrollBottom - 1 ? Math.max(space, layoutRect.bottom - rect.top) : space
+        }, 0)
+        const gap = Number.parseFloat(layoutStyle.rowGap) || 0
+        const occupied = [...rows.values()].reduce((total, value) => total + value, 0) + gap * rows.size
+        const available = Math.min(
+            height - padding - occupied,
+            height - (scrollTop - layoutRect.top) - Math.max(Number.parseFloat(layoutStyle.paddingBottom) || 0, below),
+        )
+        const inset = (Number.parseFloat(scrollStyle.paddingTop) || 0) +
+            (Number.parseFloat(scrollStyle.paddingBottom) || 0)
+        const minimum = 96 + inset
+        const heightLimit = available + inset
+        domlinkblocks.classList.toggle('scroll-compact', heightLimit < minimum)
+        const maxHeight = `${Math.max(minimum, Math.floor(heightLimit))}px`
+        if (domlinkscroll.style.maxHeight !== maxHeight) domlinkscroll.style.maxHeight = maxHeight
+    }
+
+    const scheduleHeight = (): void => {
+        if (!frame) frame = globalThis.requestAnimationFrame(updateHeight)
+    }
+
+    domlinkscroll.addEventListener('scroll', () => {
+        domlinkscroll.classList.add('scrolling')
+        clearTimeout(scrollActivityTimer)
+        scrollActivityTimer = setTimeout(() => domlinkscroll.classList.remove('scrolling'), 900)
+    }, { passive: true })
+    globalThis.addEventListener('resize', scheduleHeight)
+    globalThis.visualViewport?.addEventListener('resize', scheduleHeight)
+    if (typeof ResizeObserver !== 'undefined') {
+        const observer = new ResizeObserver(scheduleHeight)
+        for (const element of [layout, domlinkblocks, ...widgets]) observer.observe(element)
+    }
+    const mutationObserver = new MutationObserver((records) => {
+        if (records.some((record) => record.target === layout || widgets.includes(record.target as HTMLElement))) {
+            scheduleHeight()
+        }
+    })
+    mutationObserver.observe(layout, {
+        attributes: true,
+        subtree: true,
+        attributeFilter: ['class', 'style', 'hidden'],
+    })
+    mutationObserver.observe(domlinkblocks, { attributes: true, attributeFilter: ['class'] })
+    scheduleHeight()
+}
 
 export async function quickLinks(init?: LinksInit, event?: LinksUpdate): Promise<void> {
     if (event) {
@@ -138,6 +222,7 @@ export async function quickLinks(init?: LinksInit, event?: LinksUpdate): Promise
     }
 
     initGroups(sync, !!init)
+    initLinkScroll()
     initRows(sync.linksrow, sync.linkstyle)
     initblocks(sync, local)
 }
@@ -145,6 +230,7 @@ export async function quickLinks(init?: LinksInit, event?: LinksUpdate): Promise
 // Initialisation
 
 export function initblocks(sync: Sync, local?: Local): true {
+    const scrollTop = domlinkscroll.scrollTop
     const allLinks = Object.values(sync).filter((val) => isLink(val)) as Link[]
     const { pinned, synced, selected } = sync.linkgroups
     const activeGroups: LinkGroups = []
@@ -245,7 +331,7 @@ export function initblocks(sync: Sync, local?: Local): true {
         linkgroup.classList.toggle('pinned', group.pinned)
         linkgroup.classList.toggle('synced', group.synced)
         linklist.appendChild(fragment)
-        domlinkblocks.prepend(linkgroup)
+        domlinkscroll.prepend(linkgroup)
 
         if (group.title === 'topsites') {
             linktitle.textContent = tradThis('Most visited')
@@ -267,6 +353,7 @@ export function initblocks(sync: Sync, local?: Local): true {
     }
 
     setRadius(sync.linkiconradius)
+    domlinkscroll.scrollTop = scrollTop
     displayInterface('links')
     limitAltableLinks()
 

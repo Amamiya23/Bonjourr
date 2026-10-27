@@ -40,6 +40,9 @@ let desktopBounds: DOMRect | undefined
 let clearDragClick: (() => void) | undefined
 let dropPreview: HTMLLIElement | undefined
 let dragLayout: HTMLDivElement | undefined
+let dragScroll: HTMLElement | null = null
+let dragScrollTop = 0
+let dragPointer = { x: 0, y: 0 }
 const layoutItems = new Map<string, HTMLElement>()
 
 const domlinkblocks = document.getElementById('linkblocks') as HTMLDivElement
@@ -192,6 +195,11 @@ function dragFolderApp(event: PointerEvent, anchor: HTMLAnchorElement, origin = 
     const eventId = event.pointerId
     let ghost: HTMLDivElement | undefined
     let moved = false
+    const scroll = folder.closest<HTMLElement>('#link-scroll')
+    let scrollTop = scroll?.scrollTop ?? 0
+    let folderBounds = bounds
+    let pointer = { x: event.clientX, y: event.clientY }
+    let animationFrame = 0
 
     document.addEventListener('pointermove', move, { passive: false })
     document.addEventListener('pointerup', finish)
@@ -217,7 +225,26 @@ function dragFolderApp(event: PointerEvent, anchor: HTMLAnchorElement, origin = 
 
         const x = event.clientX - iconBounds.width / 2
         const y = event.clientY - iconBounds.height / 2
+        pointer = { x: event.clientX, y: event.clientY }
         ghost.style.transform = `translate(${x}px, ${y}px)`
+        if (scroll && !animationFrame) animationFrame = globalThis.requestAnimationFrame(scrollFrame)
+    }
+
+    function syncScroll(): void {
+        if (!scroll) return
+        const delta = scroll.scrollTop - scrollTop
+        if (delta) {
+            folderBounds = moveBounds(folderBounds, -delta)
+            scrollTop = scroll.scrollTop
+        }
+    }
+
+    function scrollFrame(): void {
+        animationFrame = 0
+        if (!scroll || !ghost) return
+        scrollAtEdge(scroll, pointer)
+        syncScroll()
+        animationFrame = globalThis.requestAnimationFrame(scrollFrame)
     }
 
     function finish(event: PointerEvent): void {
@@ -226,12 +253,14 @@ function dragFolderApp(event: PointerEvent, anchor: HTMLAnchorElement, origin = 
         document.removeEventListener('pointermove', move)
         document.removeEventListener('pointerup', finish)
         document.removeEventListener('pointercancel', finish)
+        globalThis.cancelAnimationFrame(animationFrame)
+        syncScroll()
         ghost?.remove()
         anchor.classList.remove('extracting')
         folder!.classList.remove('extracting-app')
 
         if (
-            moved && event.type === 'pointerup' && anchor.isConnected && isOutsideFolder(bounds, {
+            moved && event.type === 'pointerup' && anchor.isConnected && isOutsideFolder(folderBounds, {
                 x: event.clientX,
                 y: event.clientY,
             })
@@ -278,6 +307,9 @@ export function startDrag(event: PointerEvent): void {
     //
 
     domlinkgroup = path.find((node) => node?.classList?.contains('link-group')) as HTMLDivElement
+    dragScroll = isMini ? null : domlinkgroup?.closest<HTMLElement>('#link-scroll') ?? null
+    dragScrollTop = dragScroll?.scrollTop ?? 0
+    dragPointer = getPosFromEvent(event)
     folderBounds = domlinkgroup?.classList.contains('in-folder')
         ? domlinkgroup.querySelector('.link-list')?.getBoundingClientRect()
         : undefined
@@ -405,6 +437,7 @@ export function startDrag(event: PointerEvent): void {
         document.documentElement.addEventListener('pointerleave', endDrag)
     }
     document.documentElement.addEventListener('pointercancel', endDrag)
+    dragScroll?.addEventListener('scroll', syncDragScroll)
 }
 
 function beforeStartDrag(event: PointerEvent, type: 'mini' | 'link'): void {
@@ -460,13 +493,25 @@ function beforeStartDrag(event: PointerEvent, type: 'mini' | 'link'): void {
 function moveDrag(event: PointerEvent): void {
     if (event.pointerId !== dragPointerId) return
     const { x, y } = getPosFromEvent(event)
+    syncDragScroll()
+    dragPointer = { x, y }
+    updateDragPosition({ x, y })
+}
 
+function updateDragPosition({ x, y }: { x: number; y: number }): void {
     dx = x - cox
     dy = y - coy
 
     if (moveOverEmptySpace({ x, y })) return
 
     const [curr, id, type] = isDraggingOver({ x, y }) ?? ['', '']
+    if (type !== 'group' && targetGroup !== draggedGroup) {
+        targetGroup = draggedGroup
+        clearTimeout(dragChangeParentTimeout)
+        for (const block of [...blocks.values(), ...groups.values()]) {
+            block.classList.remove('drop-target', 'drop-source')
+        }
+    }
     if (dropPreview) {
         dropPreview.hidden = !curr || type === 'mini' || type === 'group' ||
             !!blocks.get(draggedId)?.classList.contains('drop-source')
@@ -474,12 +519,11 @@ function moveDrag(event: PointerEvent): void {
     const last = lastdropAreas[lastdropAreas.length - 1]
     const secondlast = lastdropAreas[lastdropAreas.length - 2]
     const staysOutsideCenter = curr === last && curr !== 'center'
-    const isDifferentGroup = targetGroup !== draggedGroup
-
     if (type === 'group') {
+        const previousGroup = targetGroup
         targetGroup = id
 
-        if (isDifferentGroup) {
+        if (targetGroup !== draggedGroup && previousGroup !== targetGroup) {
             applyDragChangeParent(id, 'group')
         }
 
@@ -496,7 +540,7 @@ function moveDrag(event: PointerEvent): void {
         return
     }
 
-    if (staysOutsideCenter || isDifferentGroup) {
+    if (staysOutsideCenter || targetGroup !== draggedGroup) {
         return
     }
 
@@ -649,6 +693,8 @@ function endDrag(event: PointerEvent): void {
     if (event.pointerId !== dragPointerId) return
     event.preventDefault()
     preventClickAfterDrag()
+    syncDragScroll()
+    dragScroll?.removeEventListener('scroll', syncDragScroll)
 
     document.documentElement.removeEventListener('pointermove', moveDrag)
     document.documentElement.removeEventListener('pointerup', endDrag)
@@ -658,6 +704,7 @@ function endDrag(event: PointerEvent): void {
     if (event.type === 'pointerup') {
         moveOverEmptySpace(getPosFromEvent(event))
     }
+    dragScroll = null
 
     const type = findTypeFromElement(blocks.get(draggedId))
     const group = domlinkgroup?.dataset.group ?? ''
@@ -803,12 +850,64 @@ function deplaceElem(dom?: HTMLElement, x = 0, y = 0): void {
 }
 
 function deplaceDraggedElem(): void {
+    if (dragScroll) {
+        scrollAtEdge(dragScroll, dragPointer)
+        syncDragScroll()
+    }
     const block = blocks.get(draggedId)
 
     if (block) {
         block.style.transform = `translate(${dx}px, ${dy}px)`
         dragAnimationFrame = globalThis.requestAnimationFrame(deplaceDraggedElem)
     }
+}
+
+function scrollAtEdge(scroll: HTMLElement, { x, y }: { x: number; y: number }): void {
+    const rect = scroll.getBoundingClientRect()
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return
+
+    const edge = Math.min(48, rect.height / 4)
+    if (!edge) return
+    const speed = y < rect.top + edge
+        ? -Math.ceil(16 * (rect.top + edge - y) / edge)
+        : y > rect.bottom - edge
+        ? Math.ceil(16 * (y - rect.bottom + edge) / edge)
+        : 0
+    if (speed) {
+        scroll.scrollTop = Math.max(0, Math.min(scroll.scrollHeight - scroll.clientHeight, scroll.scrollTop + speed))
+    }
+}
+
+function moveBounds(bounds: DOMRect, y: number): DOMRect {
+    return new DOMRect(bounds.x, bounds.y + y, bounds.width, bounds.height)
+}
+
+function syncDragScroll(): void {
+    if (!dragScroll) return
+    const delta = dragScroll.scrollTop - dragScrollTop
+    if (!delta) return
+    dragScrollTop = dragScroll.scrollTop
+
+    for (const [id, zone] of dropzones.link) {
+        if (dragScroll.contains(blocks.get(id) ?? null)) {
+            zone.y -= delta
+            const index = initids.indexOf(id)
+            if (index >= 0) {
+                const element = blocks.get(ids[index])
+                if (ids[index] !== draggedId && element && !dragScroll.contains(element)) {
+                    coords[index].y -= delta
+                    deplaceElem(element, coords[index].x, coords[index].y)
+                }
+            }
+        }
+    }
+    for (const [id, zone] of dropzones.group) {
+        if (dragScroll.contains(groups.get(id) ?? null)) zone.y -= delta
+    }
+    if (desktopBounds) desktopBounds = moveBounds(desktopBounds, -delta)
+    if (folderBounds) folderBounds = moveBounds(folderBounds, -delta)
+    coy -= delta
+    updateDragPosition(dragPointer)
 }
 
 function isDraggingOver({ x, y }: { x: number; y: number }): [DropArea, string, DropType] | undefined {

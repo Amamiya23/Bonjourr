@@ -909,7 +909,7 @@
     overflow: visible; /* otherwise shadow has borders */
 }
 
-.link-group.in-folder + #link-mini {
+#link-scroll:has(.link-group.in-folder:last-child) + #link-mini {
     /* hides link-mini when opening folder in bottom group */
     display: none;
 }

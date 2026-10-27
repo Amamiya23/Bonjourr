@@ -1,5 +1,5 @@
 import { getLinksInGroup } from './helpers.ts'
-import { initblocks, linksUpdate } from './index.ts'
+import { initblocks, linksUpdate, resetLinkScroll } from './index.ts'
 import { startDrag } from './drag.ts'
 
 import { transitioner } from '../../utils/transitioner.ts'
@@ -154,6 +154,7 @@ function changeGroup(event: Event): void {
         data.linkgroups.selected = group
         storage.sync.set(data)
         initblocks(data)
+        resetLinkScroll()
     }
 
     function hideCurrentGroup(): void {

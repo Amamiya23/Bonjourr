@@ -9,6 +9,8 @@ import type { LinkFolder } from '../../../types/shared.ts'
 import type { Sync } from '../../../types/sync.ts'
 
 const domlinkblocks = document.getElementById('linkblocks') as HTMLUListElement
+const domlinkscroll = document.getElementById('link-scroll') as HTMLDivElement
+let previousScrollTop = 0
 
 queueMicrotask(() => {
     document.addEventListener('close-folder', closeFolder)
@@ -71,6 +73,7 @@ function openFolder(data: Sync, li: HTMLLIElement): void {
     const linkgroup = li.parentNode.parentNode as HTMLElement
     const linktitle = linkgroup.querySelector<HTMLButtonElement>('.link-title')
     const folder = data[li.id] as LinkFolder
+    previousScrollTop = domlinkscroll.scrollTop
 
     const transition = transitioner()
     transition.first(hide)
@@ -86,6 +89,7 @@ function openFolder(data: Sync, li: HTMLLIElement): void {
 
     function changeToFolder(): void {
         initblocks(data)
+        domlinkscroll.scrollTop = 0
 
         if (linktitle) {
             linktitle.textContent = folder?.title || tradThis('Folder')
@@ -130,6 +134,7 @@ async function closeFolder(): Promise<void> {
             group.classList.remove('in-folder')
             group.classList.remove('hiding')
         }
+        domlinkscroll.scrollTop = previousScrollTop
     }
 }
 

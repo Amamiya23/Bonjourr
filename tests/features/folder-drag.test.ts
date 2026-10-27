@@ -40,6 +40,28 @@ function setBounds(element: Element, x: number, y: number, width: number, height
     element.getBoundingClientRect = () => new DOMRect(x, y, width, height)
 }
 
+function mockLinkScroll(): { scroll: HTMLDivElement; restore: () => void } {
+    const scroll = document.getElementById('link-scroll') as HTMLDivElement
+    const properties = ['getBoundingClientRect', 'clientHeight', 'scrollHeight'] as const
+    const original = properties.map((property) => Object.getOwnPropertyDescriptor(scroll, property))
+    const scrollTop = scroll.scrollTop
+    setBounds(scroll, 100, 100, 300, 200)
+    Object.defineProperty(scroll, 'clientHeight', { configurable: true, value: 200 })
+    Object.defineProperty(scroll, 'scrollHeight', { configurable: true, value: 600 })
+    scroll.scrollTop = 0
+    return {
+        scroll,
+        restore: () => {
+            scroll.scrollTop = scrollTop
+            for (const [index, property] of properties.entries()) {
+                const descriptor = original[index]
+                if (descriptor) Object.defineProperty(scroll, property, descriptor)
+                else Reflect.deleteProperty(scroll, property)
+            }
+        },
+    }
+}
+
 function pointer(target: Element, type: string, x: number, y: number, pointerType = 'mouse'): void {
     target.dispatchEvent(
         new PointerEvent(type, {
@@ -208,6 +230,161 @@ async function renderApps(): Promise<HTMLAnchorElement> {
     }
     return document.querySelector<HTMLAnchorElement>('#links000000 a')!
 }
+
+for (const pointerType of ['mouse', 'touch']) {
+    Deno.test({
+        name: `A ${pointerType} drag auto-scrolls and keeps its position under the pointer`,
+        sanitizeOps: false,
+        sanitizeResources: false,
+        fn: async () => {
+            const anchor = await renderApps()
+            const { scroll, restore } = mockLinkScroll()
+            try {
+                assertEquals(document.querySelectorAll('#link-scroll').length, 1)
+                assertEquals(scroll.contains(anchor), true)
+                pointer(anchor, 'pointerdown', 130, 130, pointerType)
+                if (pointerType === 'touch') await flush(480)
+                pointer(anchor, 'pointermove', 160, 130, pointerType)
+                pointer(anchor, 'pointermove', 160, 290, pointerType)
+                await flush(70)
+                const offset = scroll.scrollTop
+                assertEquals(offset > 0, true)
+                assertEquals(anchor.closest<HTMLElement>('li')!.style.transform, `translate(20px, ${180 + offset}px)`)
+                pointer(anchor, 'pointercancel', 160, 290, pointerType)
+                await flush(260)
+                assertEquals(scroll.scrollTop, offset)
+            } finally {
+                restore()
+            }
+        },
+    })
+}
+
+Deno.test({
+    name: 'A dragged app lands in the correct slot after its scroll container moves',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderApps()
+        const { scroll, restore } = mockLinkScroll()
+        try {
+            pointer(anchor, 'pointerdown', 130, 130)
+            pointer(anchor, 'pointermove', 160, 130)
+            scroll.scrollTop = 50
+            scroll.dispatchEvent(new Event('scroll'))
+            pointer(anchor, 'pointerup', 160, 80)
+            assertEquals(anchor.closest<HTMLElement>('li')!.style.transform, 'translate(20px, 20px)')
+            await flush(260)
+        } finally {
+            restore()
+        }
+    },
+})
+
+Deno.test({
+    name: 'Scrolling updates cross-group drop targets',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderApps()
+        const { scroll, restore } = mockLinkScroll()
+        const mini = document.querySelector<HTMLElement>('#link-mini')!
+        const miniBounds = Object.getOwnPropertyDescriptor(mini, 'getBoundingClientRect')
+        const buttons = [...mini.querySelectorAll('button')]
+        const buttonBounds = buttons.map((button) => Object.getOwnPropertyDescriptor(button, 'getBoundingClientRect'))
+        let other: HTMLDivElement | undefined
+        try {
+            const group = document.querySelector<HTMLElement>('.link-group')!
+            setBounds(group, 100, 100, 300, 80)
+            group.querySelector('.link-list')!.getBoundingClientRect = () =>
+                new DOMRect(100, 100 - scroll.scrollTop, 300, 80)
+            other = document.createElement('div')
+            other.className = 'link-group'
+            other.dataset.group = 'other'
+            other.innerHTML = '<ul class="link-list"></ul>'
+            scroll.append(other)
+            setBounds(other, 100, 310, 300, 80)
+            setBounds(other.querySelector('.link-list')!, 100, 310, 300, 80)
+            setBounds(mini, 600, 600, 200, 40)
+            for (const button of buttons) setBounds(button, 600, 600, 80, 40)
+            const sync = await storage.sync.get()
+            sync.linkgroups.groups.push('other')
+            await storage.sync.set(sync)
+            pointer(anchor, 'pointerdown', 130, 130)
+            pointer(anchor, 'pointermove', 160, 130)
+            assertEquals(group.classList.contains('dragging'), true)
+            scroll.scrollTop = 100
+            scroll.dispatchEvent(new Event('scroll'))
+            pointer(anchor, 'pointermove', 200, 240)
+            await flush(20)
+            assertEquals(other.classList.contains('drop-target'), true)
+            assertEquals(group.classList.contains('drop-target'), false)
+            pointer(anchor, 'pointerup', 200, 240)
+            await flush(260)
+            assertEquals(((await storage.sync.get()).links000000 as LinkElem).parent, 'other')
+        } finally {
+            other?.remove()
+            if (miniBounds) Object.defineProperty(mini, 'getBoundingClientRect', miniBounds)
+            else Reflect.deleteProperty(mini, 'getBoundingClientRect')
+            for (const [index, button] of buttons.entries()) {
+                if (buttonBounds[index]) Object.defineProperty(button, 'getBoundingClientRect', buttonBounds[index]!)
+                else Reflect.deleteProperty(button, 'getBoundingClientRect')
+            }
+            restore()
+        }
+    },
+})
+
+Deno.test({
+    name: 'Scrolling preserves the fixed page navigation drop target',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderApps()
+        const { scroll, restore } = mockLinkScroll()
+        let button: HTMLButtonElement | undefined
+        try {
+            button = document.createElement('button')
+            button.className = 'link-title'
+            button.dataset.group = 'other'
+            document.querySelector('#link-mini > div')!.append(button)
+            setBounds(button, 450, 120, 100, 50)
+            pointer(anchor, 'pointerdown', 130, 130)
+            pointer(anchor, 'pointermove', 160, 130)
+            scroll.scrollTop = 100
+            scroll.dispatchEvent(new Event('scroll'))
+            pointer(anchor, 'pointermove', 500, 140)
+            pointer(anchor, 'pointermove', 500, 140)
+            await flush(140)
+            assertEquals(button.classList.contains('drop-target'), true)
+            pointer(anchor, 'pointercancel', 500, 140)
+            await flush(260)
+        } finally {
+            button?.remove()
+            restore()
+        }
+    },
+})
+
+Deno.test({
+    name: 'A folder preview uses its scrolled bounds when released',
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        const anchor = await renderFolder()
+        const { scroll, restore } = mockLinkScroll()
+        try {
+            pointer(anchor, 'pointerdown', 130, 130)
+            pointer(anchor, 'pointermove', 160, 130)
+            scroll.scrollTop = 100
+            pointer(anchor, 'pointerup', 160, 250)
+            await flush()
+            assertEquals(((await storage.sync.get()).links000000 as LinkElem).parent, 'default')
+        } finally {
+            restore()
+        }
+    },
+})
 
 function touchScrollIsBlocked(target: Element): boolean {
     const event = new Event('touchmove', { bubbles: true, cancelable: true })
